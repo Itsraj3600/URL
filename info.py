@@ -59,7 +59,7 @@ VERIFY = bool(environ.get('VERIFY', False)) # Verification On ( True ) / Off ( F
 HOWTOVERIFY = environ.get('HOWTOVERIFY', 'https://t.me/CINE3600') # How to open tutorial link for verification
 
 # Others
-SHORTLINK_URL = environ.get('SHORTLINK_URL', 'WORK.inK')
+SHORTLINK_URL = environ.get('SHORTLINK_URL', 'dash-api.work.ink')
 SHORTLINK_API = environ.get('SHORTLINK_API', 'e01134ee-9e5f-4f05-bdc7-52c74bdf87e4')
 IS_SHORTLINK = bool(environ.get('IS_SHORTLINK', False))
 DELETE_CHANNELS = [int(dch) if id_pattern.search(dch) else dch for dch in environ.get('DELETE_CHANNELS', '0').split()]
