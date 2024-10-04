@@ -1,58 +1,58 @@
-
 import sys
 import glob
 import importlib
 from pathlib import Path
-from pyrogram import idle
 import logging
 import logging.config
-
-# Get logging configurations
-logging.config.fileConfig('logging.conf')
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger("pyrogram").setLevel(logging.ERROR)
-logging.getLogger("imdbpy").setLevel(logging.ERROR)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logging.getLogger("aiohttp").setLevel(logging.ERROR)
-logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
-
-
-from pyrogram import Client, __version__
+from pyrogram import Client, __version__, idle, types
 from pyrogram.raw.all import layer
+from datetime import date, datetime
+import pytz
+from aiohttp import web, ClientTimeout, ClientSession
+import asyncio
+
 from database.ia_filterdb import Media
 from database.users_chats_db import db
 from info import *
 from utils import temp
-from typing import Union, Optional, AsyncGenerator
-from pyrogram import types
-from Script import script 
-from datetime import date, datetime 
-import pytz
-from aiohttp import web
+from Script import script
 from plugins import web_server
-
-import asyncio
-from pyrogram import idle
-from lazybot import LazyPrincessBot
 from util.keepalive import ping_server
+from lazybot import LazyPrincessBot
 from lazybot.clients import initialize_clients
 
 
+# Configure logging
+logging.config.fileConfig('logging.conf')
+logging.getLogger().setLevel(logging.INFO)
+logging.getLogger("pyrogram").setLevel(logging.ERROR)
+logging.getLogger("imdbpy").setLevel(logging.ERROR)
+logging.getLogger("aiohttp").setLevel(logging.ERROR)
+logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+# Path to plugin files
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
+
+# Start LazyPrincessBot
 LazyPrincessBot.start()
+
+# Create asyncio event loop
 loop = asyncio.get_event_loop()
 
-
 async def Lazy_start():
-    print('\n')
-    print('Initalizing CINE3600 Bot')
+    print('\nInitializing CINE3600 Bot')
+    
     bot_info = await LazyPrincessBot.get_me()
     LazyPrincessBot.username = bot_info.username
     await initialize_clients()
+    
+    # Load plugins dynamically
     for name in files:
         with open(name) as a:
             patt = Path(a.name)
@@ -64,34 +64,56 @@ async def Lazy_start():
             spec.loader.exec_module(load)
             sys.modules["plugins." + plugin_name] = load
             print("CINE3600 Imported => " + plugin_name)
+    
+    # Keep Heroku server alive (if on Heroku)
     if ON_HEROKU:
         asyncio.create_task(ping_server())
+
+    # Banned users and chats setup
     b_users, b_chats = await db.get_banned()
     temp.BANNED_USERS = b_users
     temp.BANNED_CHATS = b_chats
     await Media.ensure_indexes()
+
+    # Get bot details
     me = await LazyPrincessBot.get_me()
     temp.ME = me.id
     temp.U_NAME = me.username
     temp.B_NAME = me.first_name
     LazyPrincessBot.username = '@' + me.username
-    logging.info(f"{me.first_name} with for Pyrogram v{__version__} (Layer {layer}) started on {me.username}.")
+    logging.info(f"{me.first_name} with Pyrogram v{__version__} (Layer {layer}) started on {me.username}.")
     logging.info(LOG_STR)
     logging.info(script.LOGO)
+
+    # Time logging
     tz = pytz.timezone('Asia/Kolkata')
     today = date.today()
     now = datetime.now(tz)
     time = now.strftime("%H:%M:%S %p")
-    await LazyPrincessBot.send_message(chat_id=LOG_CHANNEL, text=script.RESTART_TXT.format(today, time))
+    
+    # Send startup message
+    await LazyPrincessBot.send_message(
+        chat_id=LOG_CHANNEL,
+        text=script.RESTART_TXT.format(today, time)
+    )
+    
+    # Setup aiohttp web server with timeout
     app = web.AppRunner(await web_server())
     await app.setup()
-    bind_address = "0.0.0.0"
-    await web.TCPSite(app, bind_address, PORT).start()
-    await idle()
 
+    # Set client timeout and session
+    timeout = ClientTimeout(total=30)  # Timeout of 30 seconds for aiohttp requests
+    session = ClientSession(timeout=timeout)
+
+    bind_address = "0.0.0.0"
+    site = web.TCPSite(app, bind_address, PORT, shutdown_timeout=5.0)  # Set 5 second shutdown timeout
+    await site.start()
+
+    # Keep the bot running
+    await idle()
 
 if __name__ == '__main__':
     try:
         loop.run_until_complete(Lazy_start())
     except KeyboardInterrupt:
-        logging.info('Service Stopped Bye 👋')
+        logging.info('Service Stopped. Bye 👋')
