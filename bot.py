@@ -16,8 +16,8 @@ from info import *
 from utils import temp
 from Script import script
 from util.keepalive import ping_server
-from lazybot import LazyPrincessBot
-from lazybot.clients import initialize_clients
+from cinebot import Cine3600Bot
+from cinebot.clients import initialize_clients
 
 
 # Configure logging
@@ -37,17 +37,17 @@ logging.basicConfig(
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
 
-# Start LazyPrincessBot
-LazyPrincessBot.start()
+# Start Cine3600Bot
+Cine3600Bot.start()
 
 # Create asyncio event loop
 loop = asyncio.get_event_loop()
 
-async def Lazy_start():
+async def Cine_start():
     print('\nInitializing CINE3600 Bot')
     
-    bot_info = await LazyPrincessBot.get_me()
-    LazyPrincessBot.username = bot_info.username
+    bot_info = await Cine3600Bot.get_me()
+    Cine3600Bot.username = bot_info.username
     await initialize_clients()
     
     # Load plugins dynamically
@@ -74,11 +74,11 @@ async def Lazy_start():
     await Media.ensure_indexes()
 
     # Get bot details
-    me = await LazyPrincessBot.get_me()
+    me = await Cine3600Bot.get_me()
     temp.ME = me.id
     temp.U_NAME = me.username
     temp.B_NAME = me.first_name
-    LazyPrincessBot.username = '@' + me.username
+    Cine3600Bot.username = '@' + me.username
     logging.info(f"{me.first_name} with Pyrogram v{__version__} (Layer {layer}) started on {me.username}.")
     logging.info(LOG_STR)
     logging.info(script.LOGO)
@@ -90,7 +90,7 @@ async def Lazy_start():
     time = now.strftime("%H:%M:%S %p")
     
     # Send startup message
-    await LazyPrincessBot.send_message(
+    await Cine3600Bot.send_message(
         chat_id=LOG_CHANNEL,
         text=script.RESTART_TXT.format(today, time)
     )
@@ -100,6 +100,6 @@ async def Lazy_start():
 
 if __name__ == '__main__':
     try:
-        loop.run_until_complete(Lazy_start())
+        loop.run_until_complete(Cine_start())
     except KeyboardInterrupt:
         logging.info('Service Stopped. Bye 👋')

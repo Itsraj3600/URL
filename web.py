@@ -4,14 +4,14 @@ from aiohttp import web
 from plugins import web_server
 from info import PORT
 
-from lazybot import LazyPrincessBot
-from lazybot.clients import initialize_clients
+from cinebot import Cine3600Bot
+from cinebot.clients import initialize_clients
 
 
 async def main():
-    print("Starting Telegram client...")
+    print("Starting Cine client...")
 
-    await LazyPrincessBot.start()
+    await Cine3600Bot.start()
     await initialize_clients()
 
     print("Starting web server...")
