@@ -71,6 +71,8 @@ class_cache = {}
 async def media_streamer(request: web.Request, id: int, secure_hash: str):
     range_header = request.headers.get("Range", 0)
     
+    logging.info(f"work_loads = {work_loads}")
+    logging.info(f"multi_clients = {multi_clients}")
     index = min(work_loads, key=work_loads.get)
     faster_client = multi_clients[index]
     
