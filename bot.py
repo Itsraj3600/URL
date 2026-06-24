@@ -8,7 +8,6 @@ from pyrogram import Client, __version__, idle, types
 from pyrogram.raw.all import layer
 from datetime import date, datetime
 import pytz
-from aiohttp import web, ClientTimeout, ClientSession
 import asyncio
 
 from database.ia_filterdb import Media
@@ -16,7 +15,6 @@ from database.users_chats_db import db
 from info import *
 from utils import temp
 from Script import script
-from plugins import web_server
 from util.keepalive import ping_server
 from lazybot import LazyPrincessBot
 from lazybot.clients import initialize_clients
@@ -97,18 +95,6 @@ async def Lazy_start():
         text=script.RESTART_TXT.format(today, time)
     )
     
-    # Setup aiohttp web server with timeout
-    app = web.AppRunner(await web_server())
-    await app.setup()
-
-    # Set client timeout and session
-    timeout = ClientTimeout(total=30)  # Timeout of 30 seconds for aiohttp requests
-    session = ClientSession(timeout=timeout)
-
-    bind_address = "0.0.0.0"
-    site = web.TCPSite(app, bind_address, PORT, shutdown_timeout=5.0)  # Set 5 second shutdown timeout
-    await site.start()
-
     # Keep the bot running
     await idle()
 
