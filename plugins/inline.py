@@ -55,7 +55,8 @@ async def answer(bot, query):
                                                   string,
                                                   file_type=file_type,
                                                   max_results=10,
-                                                  offset=offset)
+                                                  offset=offset,
+                                                  requester_id=query.from_user.id if query.from_user else None)
 
     for file in files:
         title=file.file_name

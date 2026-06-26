@@ -6,7 +6,8 @@ from datetime import date, datetime
 import pytz
 import asyncio
 
-from database.ia_filterdb import Media, Media2, choose_mediaDB, db as clientDB
+from database.client import connect_all
+from database.utils import ensure_all_indexes
 from database.users_chats_db import db
 from info import *
 from utils import temp
@@ -14,7 +15,6 @@ from Script import script
 from util.keepalive import ping_server
 from cinebot import Cine3600Bot
 from cinebot.clients import initialize_clients
-from sample_info import tempDict
 
 
 # Configure logging
@@ -41,6 +41,10 @@ async def Cine_start():
     Cine3600Bot.username = bot_info.username
     await initialize_clients()
 
+    # Connect to all configured databases (Primary / Secondary / Tertiary),
+    # run health checks and verify indexes before serving anything.
+    await connect_all()
+
     # Keep Heroku server alive (if on Heroku)
     if ON_HEROKU:
         asyncio.create_task(ping_server())
@@ -49,20 +53,12 @@ async def Cine_start():
     b_users, b_chats = await db.get_banned()
     temp.BANNED_USERS = b_users
     temp.BANNED_CHATS = b_chats
-    await Media.ensure_indexes()
-    await Media2.ensure_indexes()
 
-    stats = await clientDB.command('dbStats')
-    free_dbSize = round(512 - ((stats['dataSize'] / (1024 * 1024)) + (stats['indexSize'] / (1024 * 1024))), 2)
-    if SECONDDB_URI and free_dbSize < 10:
-        tempDict["indexDB"] = SECONDDB_URI
-        logging.info(f"Since Primary DB has only {free_dbSize} MB left, Secondary DB will be used to store data.")
-    elif SECONDDB_URI is None:
-        logging.error("Missing second DB URI !\n\nAdd SECONDDB_URI now !\n\nExiting...")
-        exit()
-    else:
-        logging.info(f"Since primary DB has enough space ({free_dbSize}MB) left, it will be used for storing data.")
-    await choose_mediaDB()
+    # Verify / create indexes on every healthy database. The router handles
+    # which database new files are written to (fill-by-capacity + failover),
+    # so no manual primary/secondary selection is needed here anymore.
+    await ensure_all_indexes()
+    logging.info("Database Ready")
 
     # Get bot details
     me = await Cine3600Bot.get_me()
