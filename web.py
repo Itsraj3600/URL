@@ -9,23 +9,45 @@ from cinebot.clients import initialize_clients
 
 
 async def main():
-    print("Starting Cine client...")
+    print("=" * 50)
+    print("🚀 Starting CINE3600...")
+    print("=" * 50)
 
+    print("▶ Starting Telegram Bot...")
     await Cine3600Bot.start()
+
+    print("▶ Initializing Clients...")
     await initialize_clients()
 
-    print("Starting web server...")
+    print("▶ Starting Web Server...")
 
-    app = web.AppRunner(await web_server())
-    await app.setup()
+    # Create aiohttp application
+    app = await web_server()
 
-    site = web.TCPSite(app, "0.0.0.0", PORT)
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    site = web.TCPSite(
+        runner,
+        host="0.0.0.0",
+        port=PORT
+    )
+
     await site.start()
 
-    print("Web server started")
+    print(f"✅ Web Server Running on Port {PORT}")
+    print("✅ Bot is Online")
+    print("=" * 50)
 
-    while True:
-        await asyncio.sleep(3600)
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except (KeyboardInterrupt, SystemExit):
+        print("Shutting down...")
+
+    finally:
+        await runner.cleanup()
+        await Cine3600Bot.stop()
 
 
 if __name__ == "__main__":
