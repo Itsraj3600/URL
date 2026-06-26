@@ -74,7 +74,9 @@ async def get_shortlink(url):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, get_shortlink_sync, url)
 
-@Client.on_message(filters.group | filters.private & filters.text & filters.incoming)
+movie_search_filter = (filters.group | filters.private) & filters.text & filters.incoming & ~filters.regex(r"^/")
+
+@Client.on_message(movie_search_filter)
 async def give_filter(client, message):
     if message.chat.id != SUPPORT_CHAT_ID:
         manual = await manual_filters(client, message)

@@ -1,16 +1,12 @@
-import sys
-import glob
-import importlib
-from pathlib import Path
 import logging
 import logging.config
-from pyrogram import Client, __version__, idle, types
+from pyrogram import __version__, idle
 from pyrogram.raw.all import layer
 from datetime import date, datetime
 import pytz
 import asyncio
 
-from database.ia_filterdb import Media
+from database.ia_filterdb import Media, Media2, choose_mediaDB, db as clientDB
 from database.users_chats_db import db
 from info import *
 from utils import temp
@@ -18,6 +14,7 @@ from Script import script
 from util.keepalive import ping_server
 from cinebot import Cine3600Bot
 from cinebot.clients import initialize_clients
+from sample_info import tempDict
 
 
 # Configure logging
@@ -33,36 +30,17 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-# Path to plugin files
-ppath = "plugins/*.py"
-files = glob.glob(ppath)
-
-# Start Cine3600Bot
-Cine3600Bot.start()
-
 # Create asyncio event loop
 loop = asyncio.get_event_loop()
 
 async def Cine_start():
     print('\nInitializing CINE3600 Bot')
-    
+
+    await Cine3600Bot.start()
     bot_info = await Cine3600Bot.get_me()
     Cine3600Bot.username = bot_info.username
     await initialize_clients()
-    
-    # Load plugins dynamically
-    for name in files:
-        with open(name) as a:
-            patt = Path(a.name)
-            plugin_name = patt.stem.replace(".py", "")
-            plugins_dir = Path(f"plugins/{plugin_name}.py")
-            import_path = "plugins.{}".format(plugin_name)
-            spec = importlib.util.spec_from_file_location(import_path, plugins_dir)
-            load = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(load)
-            sys.modules["plugins." + plugin_name] = load
-            print("CINE3600 Imported => " + plugin_name)
-    
+
     # Keep Heroku server alive (if on Heroku)
     if ON_HEROKU:
         asyncio.create_task(ping_server())
@@ -72,6 +50,19 @@ async def Cine_start():
     temp.BANNED_USERS = b_users
     temp.BANNED_CHATS = b_chats
     await Media.ensure_indexes()
+    await Media2.ensure_indexes()
+
+    stats = await clientDB.command('dbStats')
+    free_dbSize = round(512 - ((stats['dataSize'] / (1024 * 1024)) + (stats['indexSize'] / (1024 * 1024))), 2)
+    if SECONDDB_URI and free_dbSize < 10:
+        tempDict["indexDB"] = SECONDDB_URI
+        logging.info(f"Since Primary DB has only {free_dbSize} MB left, Secondary DB will be used to store data.")
+    elif SECONDDB_URI is None:
+        logging.error("Missing second DB URI !\n\nAdd SECONDDB_URI now !\n\nExiting...")
+        exit()
+    else:
+        logging.info(f"Since primary DB has enough space ({free_dbSize}MB) left, it will be used for storing data.")
+    await choose_mediaDB()
 
     # Get bot details
     me = await Cine3600Bot.get_me()
