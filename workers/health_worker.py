@@ -1,0 +1,2 @@
+class HealthWorker:
+    pass

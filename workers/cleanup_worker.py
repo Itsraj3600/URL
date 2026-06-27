@@ -1,0 +1,2 @@
+class CleanupWorker:
+    pass

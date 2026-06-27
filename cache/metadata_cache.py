@@ -1,0 +1,2 @@
+class MetadataCache:
+    pass

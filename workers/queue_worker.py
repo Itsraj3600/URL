@@ -1,0 +1,2 @@
+class QueueWorker:
+    pass

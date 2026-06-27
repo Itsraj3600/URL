@@ -1,0 +1,2 @@
+class DatabaseAnalytics:
+    pass
