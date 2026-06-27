@@ -12,7 +12,7 @@ pyrofork>=2.0.30
  pytz 
  aiohttp
 
- openai>=1.0.0
+openai>=1.30.0
 
 #---master---# 
  #Telethroid==0.0.10 
