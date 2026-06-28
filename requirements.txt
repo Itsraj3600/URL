@@ -42,7 +42,8 @@ apscheduler
 pyshorteners
 pyromod
 colorama
-
-
-
-  
+hachoir
+bcrypt
+cryptography
+PyJWT
+httpx
