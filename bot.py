@@ -26,6 +26,7 @@ import logging
 import logging.config
 from pyrogram import __version__, idle
 from pyrogram.raw.all import layer
+from os import environ
 from datetime import date, datetime
 import pytz
 import asyncio
@@ -57,9 +58,6 @@ logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
-# Create asyncio event loop
-loop = asyncio.get_event_loop()
-
 
 async def Cine_start():
     """
@@ -81,9 +79,12 @@ async def Cine_start():
     # Step 0: Validate Startup Configuration
     # =================================================================
     logger.info("Step 0/8: Validating startup configuration...")
-    if not await validate_startup():
-        logger.error("Startup validation failed. Exiting.")
-        return
+
+    startup_ok = await validate_startup()
+
+    if not startup_ok:
+        logger.error("❌ Startup validation failed.")
+        raise RuntimeError("Startup validation failed")
 
     # =================================================================
     # Step 1: Initialize Shared State
@@ -133,6 +134,15 @@ async def Cine_start():
     logger.info("Step 4/8: Connecting to databases...")
     await connect_all()
 
+    if PRIMARY.client is None:
+        raise RuntimeError("Primary MongoDB client was not initialized")
+
+    try:
+        await setup_production_schema()
+    except Exception as e:
+        logger.exception(f"Schema setup failed: {e}")
+        raise
+
     # Keep Heroku server alive (if on Heroku)
     if ON_HEROKU:
         asyncio.create_task(ping_server())
@@ -151,7 +161,7 @@ async def Cine_start():
     logger.info("Step 5/8: Initializing index history...")
     from database.index_history import IndexHistoryDB
     await IndexHistoryDB.initialize()
-    
+
     logger.info("✅ Database Ready")
 
     # =================================================================
@@ -175,7 +185,7 @@ async def Cine_start():
     setup_event_handlers()
 
     # Register graceful shutdown handlers
-    shutdown_manager = register_graceful_shutdown(Cine3600Bot, PRIMARY.client)
+    register_graceful_shutdown(Cine3600Bot, PRIMARY.client)
 
     # =================================================================
     # Notify Success
@@ -185,16 +195,21 @@ async def Cine_start():
     logger.info(script.LOGO)
 
     # Time logging
-    tz = pytz.timezone('Asia/Kolkata')
+    TIMEZONE = environ.get("TIMEZONE", "UTC")
+    tz = pytz.timezone(TIMEZONE)
     today = date.today()
     now = datetime.now(tz)
     time = now.strftime("%H:%M:%S %p")
 
     # Send startup message
-    await Cine3600Bot.send_message(
-        chat_id=LOG_CHANNEL,
-        text=script.RESTART_TXT.format(today, time)
-    )
+    try:
+        if LOG_CHANNEL:
+            await Cine3600Bot.send_message(
+                chat_id=LOG_CHANNEL,
+                text=script.RESTART_TXT.format(today, time)
+            )
+    except Exception as e:
+        logger.warning(f"Unable to send startup message: {e}")
 
     # =================================================================
     # Enter Idle Loop
@@ -206,6 +221,9 @@ async def Cine_start():
 
     logger.info("Bot started successfully. Entering idle loop...")
 
+    # Start periodic dashboard heartbeat
+    heartbeat_loop_task = asyncio.create_task(heartbeat_loop())
+
     # Publish startup event
     event_bus = get_event_bus()
     await event_bus.publish(
@@ -214,7 +232,26 @@ async def Cine_start():
     )
 
     # Keep the bot running
-    await idle()
+    try:
+        await idle()
+    finally:
+        temp.STOPPING = True
+
+        heartbeat_task.cancel()
+
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
+
+        heartbeat_loop_task.cancel()
+
+        try:
+            await heartbeat_loop_task
+        except asyncio.CancelledError:
+            pass
+
+        logger.info("Heartbeat stopped")
 
 
 async def start_background_workers():
@@ -265,10 +302,13 @@ async def heartbeat_loop():
     """Periodic heartbeat to update shared state."""
     shared_state = get_shared_state()
 
-    while True:
+    if shared_state is None:
+        return
+
+    while not getattr(temp, "STOPPING", False):
         try:
             await shared_state.update_bot_heartbeat()
-            await asyncio.sleep(60)  # Every minute
+            await asyncio.sleep(30)  # Every 30 seconds
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -278,12 +318,8 @@ async def heartbeat_loop():
 
 if __name__ == '__main__':
     try:
-        # Start heartbeat task
-        loop.create_task(heartbeat_loop())
-
-        # Run main bot
-        loop.run_until_complete(Cine_start())
+        asyncio.run(Cine_start())
     except KeyboardInterrupt:
-        logger.info('Service Stopped. Bye')
-    except Exception as e:
-        logger.exception(f"Fatal error: {e}")
+        logger.info("Bot stopped by user.")
+    except Exception:
+        logger.exception("Fatal startup error")
