@@ -35,7 +35,7 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.ERROR)
 
-req_channel = REQ_CHANNEL
+req_channel = REQST_CHANNEL
 BUTTONS = {}
 SPELL_CHECK = {}
 
