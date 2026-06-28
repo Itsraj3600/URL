@@ -12,8 +12,6 @@ pyrofork>=2.0.30
  pytz 
  aiohttp
 
-openai>=1.30.0
-
 #---master---# 
  #Telethroid==0.0.10 
  PyLeaves==1.0.2 

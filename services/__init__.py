@@ -6,16 +6,19 @@ This package provides service-based architecture for:
 - Caching (CacheService)
 - Pagination (PaginationService)
 - Statistics (StatsService)
+- Indexing (IndexService)
+- Progress tracking (ProgressService)
+- Index statistics (IndexStatsService)
 - And more...
 
 Usage:
-    from services import get_search_service, get_stats_service
+    from services import get_search_service, get_index_service
 
     search = get_search_service()
     results = await search.search("avatar")
 
-    stats = get_stats_service()
-    stats.record_search(query="avatar", results_count=10, ...)
+    index = get_index_service()
+    job = await index.start_job(channel_id=-100..., last_message_id=50000)
 """
 
 # Search Service
@@ -48,7 +51,7 @@ from services.pagination_service import (
     reset_pagination_service,
 )
 
-# Stats Service
+# Stats Service (Search Stats)
 from services.stats_service import (
     StatsService,
     SearchMetric,
@@ -57,6 +60,49 @@ from services.stats_service import (
     HourlyStats,
     get_stats_service,
     reset_stats_service,
+)
+
+# Index Service
+from services.index_service import (
+    IndexService,
+    IndexJob,
+    DuplicateInfo,
+    DuplicateReason,
+    MediaMetadata,
+    IndexStats,
+    JobStatus,
+    get_index_service,
+    reset_index_service,
+)
+
+# Progress Service
+from services.progress_service import (
+    ProgressService,
+    ProgressState,
+    ProgressStage,
+    get_progress_service,
+    reset_progress_service,
+)
+
+# Index Stats Service
+from services.index_stats_service import (
+    IndexStatsService,
+    JobStatistics,
+    AggregateStats,
+    DailyStats,
+    get_index_stats_service,
+    reset_index_stats_service,
+)
+
+# Shared State Service
+from services.shared_state import (
+    SharedStateService,
+    BotStatus,
+    IndexStatus,
+    WorkerStatus,
+    StateKeys,
+    get_shared_state,
+    initialize_shared_state,
 )
 
 __all__ = [
@@ -89,4 +135,35 @@ __all__ = [
     "HourlyStats",
     "get_stats_service",
     "reset_stats_service",
+    # Index
+    "IndexService",
+    "IndexJob",
+    "DuplicateInfo",
+    "DuplicateReason",
+    "MediaMetadata",
+    "IndexStats",
+    "JobStatus",
+    "get_index_service",
+    "reset_index_service",
+    # Progress
+    "ProgressService",
+    "ProgressState",
+    "ProgressStage",
+    "get_progress_service",
+    "reset_progress_service",
+    # Index Stats
+    "IndexStatsService",
+    "JobStatistics",
+    "AggregateStats",
+    "DailyStats",
+    "get_index_stats_service",
+    "reset_index_stats_service",
+    # Shared State
+    "SharedStateService",
+    "BotStatus",
+    "IndexStatus",
+    "WorkerStatus",
+    "StateKeys",
+    "get_shared_state",
+    "initialize_shared_state",
 ]
