@@ -2,6 +2,8 @@ import asyncio
 import re
 import ast
 import math
+import os
+from contextlib import suppress
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 from Script import script
 from database.connections_mdb import active_connection, all_connections, delete_connection, if_active, make_active, \
@@ -135,14 +137,18 @@ async def doc(bot, update):
 	        progress_args=( "**⎝⎝✧ ʀᴇᴄɪᴇᴠɪɴɢ ꜰɪʟᴇ ꜰʀᴏᴍ CINE ꜱᴇʀᴠᴇʀ ✧⎠⎠**",  ms, c_time   )) 
     except Exception as e: 
         await ms.edit(f" Erro {e}") 
-        os.remove(file_path)
+        with suppress(FileNotFoundError):
+            os.remove(file_path)
         if ph_path:
-          os.remove(ph_path)
+            with suppress(FileNotFoundError):
+                os.remove(ph_path)
         return 
     await ms.delete() 
-    os.remove(file_path) 
+    with suppress(FileNotFoundError):
+        os.remove(file_path) 
     if ph_path:
-       os.remove(ph_path) 
+        with suppress(FileNotFoundError):
+            os.remove(ph_path) 
 
 
 # Born to make history @LazyDeveloper !

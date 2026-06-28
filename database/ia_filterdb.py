@@ -20,6 +20,7 @@ import time
 from collections import OrderedDict
 from struct import pack
 from os import environ
+from typing import Optional, Dict, List, Any, Union
 
 from pyrogram.file_id import FileId
 
@@ -42,7 +43,18 @@ _BRACKET_TAG_RE = re.compile(r"[\[\(\{].*?[\]\)\}]")
 _NON_WORD_RE = re.compile(r"[^\w\s]+")
 
 
-def normalize_title(text):
+def normalize_title(text: Optional[str]) -> str:
+    """
+    Normalize a movie/file title for search indexing.
+    
+    Removes brackets, tags, special characters, and normalizes whitespace.
+    
+    Args:
+        text: The title to normalize
+        
+    Returns:
+        Normalized title string in lowercase
+    """
     text = (text or "").lower()
     text = _BRACKET_TAG_RE.sub(" ", text)
     text = text.replace("_", " ")
@@ -51,7 +63,20 @@ def normalize_title(text):
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _search_cache_key(chat_id, requester_id, query, file_type=None, filter_mode=False):
+def _search_cache_key(chat_id: int, requester_id: int, query: str, file_type: Optional[str] = None, filter_mode: bool = False) -> str:
+    """
+    Generate a cache key for search results.
+    
+    Args:
+        chat_id: The chat ID for scoped searches
+        requester_id: The user ID requesting the search
+        query: The search query string
+        file_type: Optional file type filter
+        filter_mode: Whether filter mode is enabled
+        
+    Returns:
+        Cache key string
+    """
     return "|".join(
         [
             str(chat_id or 0),
@@ -63,7 +88,13 @@ def _search_cache_key(chat_id, requester_id, query, file_type=None, filter_mode=
     )
 
 
-def _search_cache_prune():
+def _search_cache_prune() -> None:
+    """
+    Remove expired entries from the search cache and enforce max size limits.
+    
+    Removes entries older than SEARCH_CACHE_TTL_SECONDS and evicts oldest entries
+    when cache exceeds SEARCH_CACHE_MAX_ENTRIES.
+    """
     now = time.monotonic()
     expired = [key for key, value in _SEARCH_CACHE.items() if now - value["created_at"] > SEARCH_CACHE_TTL_SECONDS]
     for key in expired:

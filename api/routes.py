@@ -5,10 +5,36 @@ FastAPI-style route definitions that can be used with the Next.js API.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def validate_request(method: str, path: str) -> tuple[bool, Optional[str]]:
+    """
+    Validate API request before processing.
+    
+    Args:
+        method: HTTP method
+        path: Request path
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Validate method
+    if method not in ["GET", "POST", "PUT", "DELETE", "PATCH"]:
+        return False, f"Invalid HTTP method: {method}"
+    
+    # Validate path
+    if not isinstance(path, str) or not path.startswith("/"):
+        return False, "Invalid path format"
+    
+    # Reject paths that are too long to prevent potential attacks
+    if len(path) > 1000:
+        return False, "Path too long"
+    
+    return True, None
 
 
 # Route definitions
@@ -109,11 +135,41 @@ async def handle_request(method: str, path: str, params: dict = None, body: dict
     Returns:
         Response data dict
     """
+    # Validate request
+    is_valid, error_msg = validate_request(method, path)
+    if not is_valid:
+        logger.warning(f"Invalid request: {error_msg}")
+        return {"error": error_msg, "status": 400}
+    
     from api.dashboard import get_dashboard_api
 
     api = get_dashboard_api()
     params = params or {}
     body = body or {}
+
+    # Handle static asset requests (favicon, etc.)
+    if method == "GET" and path == "/favicon.ico":
+        return {"error": "Not found", "status": 404}
+    
+    if method == "GET" and path == "/robots.txt":
+        return {"error": "Not found", "status": 404}
+
+    # Health check endpoints (Kubernetes probes)
+    if method == "GET" and path == "/health":
+        from api.health_v2 import get_health_checker
+        checker = get_health_checker()
+        return await checker.get_health_status()
+    
+    if method == "GET" and path == "/ready":
+        from api.health_v2 import get_health_checker
+        checker = get_health_checker()
+        status = await checker.get_readiness_status()
+        return {**status, "status_code": 200 if status["ready"] else 503}
+    
+    if method == "GET" and path == "/live":
+        from api.health_v2 import get_health_checker
+        checker = get_health_checker()
+        return await checker.get_liveness_status()
 
     # Route handlers
     if method == "GET" and path == "/api/overview":
@@ -158,6 +214,37 @@ async def handle_request(method: str, path: str, params: dict = None, body: dict
         job_id = path.split("/")[-2]
         return await api.resume_index(job_id)
 
+    # Worker monitoring endpoints
+    elif method == "GET" and path == "/api/workers":
+        from workers.heartbeat import get_all_worker_statuses
+        from database.client import PRIMARY
+        workers = await get_all_worker_statuses(PRIMARY.client)
+        return {"workers": workers, "count": len(workers)}
+    
+    elif method == "GET" and path.startswith("/api/workers/"):
+        worker_id = path.split("/")[-1]
+        from workers.heartbeat import get_worker_status
+        from database.client import PRIMARY
+        worker = await get_worker_status(PRIMARY.client, worker_id)
+        if worker:
+            # Get metrics if available
+            from workers.monitor import get_worker_monitor
+            monitor = get_worker_monitor()
+            if monitor:
+                stats = await monitor.get_worker_stats(worker_id)
+                if stats:
+                    worker["stats"] = stats
+            return worker
+        return {"error": "Worker not found", "status": 404}
+    
+    elif method == "GET" and path == "/api/workers/alerts":
+        from workers.monitor import get_worker_monitor
+        monitor = get_worker_monitor()
+        if monitor:
+            alerts = await monitor.check_alerts()
+            return {"alerts": alerts, "count": len(alerts)}
+        return {"alerts": [], "count": 0}
+    
     elif method == "POST" and path.startswith("/api/index/") and path.endswith("/cancel"):
         job_id = path.split("/")[-2]
         return await api.cancel_index(job_id)

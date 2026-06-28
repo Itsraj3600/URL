@@ -30,8 +30,9 @@ from datetime import date, datetime
 import pytz
 import asyncio
 
-from database.client import connect_all
+from database.client import connect_all, PRIMARY
 from database.utils import ensure_all_indexes
+from database.schema import setup_production_schema
 from database.users_chats_db import db
 from info import *
 from utils import temp
@@ -41,6 +42,9 @@ from cinebot import Cine3600Bot
 from cinebot.clients import initialize_clients
 from services.shared_state import initialize_shared_state, get_shared_state
 from core import get_event_bus, Events
+from core.startup import validate_startup
+from core.shutdown import register_graceful_shutdown
+from workers.heartbeat import WorkerHeartbeat
 
 
 # Configure logging
@@ -62,20 +66,29 @@ async def Cine_start():
     Main startup function for the Telegram bot worker.
 
     This function:
-    1. Connects to Telegram
-    2. Initializes databases
-    3. Sets up shared state for dashboard
-    4. Starts workers
-    5. Enters idle loop
+    1. Validates startup configuration
+    2. Connects to Telegram
+    3. Initializes databases
+    4. Sets up shared state for dashboard
+    5. Starts workers and monitoring
+    6. Enters idle loop
     """
     print('\n' + '=' * 50)
     print('🎬 Initializing CINE3600 Bot Worker')
     print('=' * 50)
 
     # =================================================================
+    # Step 0: Validate Startup Configuration
+    # =================================================================
+    logger.info("Step 0/8: Validating startup configuration...")
+    if not await validate_startup():
+        logger.error("Startup validation failed. Exiting.")
+        return
+
+    # =================================================================
     # Step 1: Initialize Shared State
     # =================================================================
-    logger.info("Step 1/7: Initializing shared state...")
+    logger.info("Step 1/8: Initializing shared state...")
     shared_state = await initialize_shared_state()
 
     # Mark bot as starting
@@ -88,7 +101,7 @@ async def Cine_start():
     # =================================================================
     # Step 2: Start Telegram Bot
     # =================================================================
-    logger.info("Step 2/7: Starting Telegram Bot...")
+    logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
 
     # Get bot info
@@ -111,13 +124,13 @@ async def Cine_start():
     # =================================================================
     # Step 3: Initialize Clients
     # =================================================================
-    logger.info("Step 3/7: Initializing clients...")
+    logger.info("Step 3/8: Initializing clients...")
     await initialize_clients()
 
     # =================================================================
     # Step 4: Connect to Databases
     # =================================================================
-    logger.info("Step 4/7: Connecting to databases...")
+    logger.info("Step 4/8: Connecting to databases...")
     await connect_all()
 
     # Keep Heroku server alive (if on Heroku)
@@ -127,26 +140,42 @@ async def Cine_start():
     # =================================================================
     # Step 5: Load Banned Users and Verify Indexes
     # =================================================================
-    logger.info("Step 5/7: Loading banned users...")
+    logger.info("Step 5/8: Loading banned users...")
     b_users, b_chats = await db.get_banned()
     temp.BANNED_USERS = b_users
     temp.BANNED_CHATS = b_chats
 
-    logger.info("Step 5/7: Verifying database indexes...")
+    logger.info("Step 5/8: Verifying database indexes...")
     await ensure_all_indexes()
+
+    logger.info("Step 5/8: Initializing index history...")
+    from database.index_history import IndexHistoryDB
+    await IndexHistoryDB.initialize()
+    
     logger.info("✅ Database Ready")
 
     # =================================================================
-    # Step 6: Start Background Workers
+    # Step 6: Start Worker Heartbeat
     # =================================================================
-    logger.info("Step 6/7: Starting background workers...")
+    logger.info("Step 6/8: Starting worker heartbeat monitoring...")
+    heartbeat = WorkerHeartbeat("main", PRIMARY.client)
+    heartbeat_task = asyncio.create_task(heartbeat.start())
+    temp.HEARTBEAT = heartbeat
+
+    # =================================================================
+    # Step 7: Start Background Workers
+    # =================================================================
+    logger.info("Step 7/8: Starting background workers...")
     await start_background_workers()
 
     # =================================================================
-    # Step 7: Setup Event Handlers
+    # Step 8: Setup Event Handlers & Graceful Shutdown
     # =================================================================
-    logger.info("Step 7/7: Setting up event handlers...")
+    logger.info("Step 8/8: Setting up event handlers and shutdown handlers...")
     setup_event_handlers()
+
+    # Register graceful shutdown handlers
+    shutdown_manager = register_graceful_shutdown(Cine3600Bot, PRIMARY.client)
 
     # =================================================================
     # Notify Success
