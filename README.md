@@ -167,7 +167,7 @@ python3 bot.py
 
 
 ## Thanks to 
- - Thanks To [HP](https://t.me/DeltedFromEarth) for customising this amazing [Repo](https://github.com/HarshalPurohitEdits/TheMovieProviderBot).
+ - Thanks To [Kirxt](https://t.me/Its_raj3600) for customising this amazing [Repo](https://github.com/Itsraj3600/URL).
  - Thanks To Dan For His Awesome [Library](https://github.com/pyrogram/pyrogram)
  - Thanks To [EvamariaTG](https://raw.githubusercontent.com/EvamariaTG) for their awesome [EvaMaria Bot](https://raw.githubusercontent.com/EvamariaTG/EvaMaria)
  - Thanks To [Joelkb](https://github.com/Joelkb) for their awesome repo [DqFileDonor](https://github.com/Joelkb/DQ-the-file-donor)
