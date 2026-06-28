@@ -54,20 +54,31 @@ class temp(object):
     SETTINGS = {}
     IMDB_CAP = {}
 
-async def is_req_subscribed(bot, query):
-    if await db.find_join_req(query.from_user.id):
+async def is_subscribed(bot, user_id):
+    """
+    Check whether a user has joined the required AUTH_CHANNEL.
+    Returns True if subscribed, False otherwise.
+    """
+    if not AUTH_CHANNEL:
         return True
+
     try:
-        user = await bot.get_chat_member(AUTH_CHANNEL, query.from_user.id)
+        member = await bot.get_chat_member(AUTH_CHANNEL, user_id)
+        return member.status != enums.ChatMemberStatus.BANNED
+
     except UserNotParticipant:
-        pass
+        return False
+
     except Exception as e:
         logger.exception(e)
-    else:
-        if user.status != enums.ChatMemberStatus.BANNED:
-            return True
+        return False
 
-    return False
+
+async def is_req_subscribed(bot, query):
+    """
+    Backward compatibility wrapper for callback queries.
+    """
+    return await is_subscribed(bot, query.from_user.id)
 
 async def get_poster(query, bulk=False, id=False, file=None):
     if not id:
@@ -673,7 +684,7 @@ async def send_all(bot, userid, files, ident, chat_id, user_name, query):
     if 'is_shortlink' in settings.keys():
         ENABLE_SHORTLINK = settings['is_shortlink']
     else:
-        await save_group_settings(message.chat.id, 'is_shortlink', False)
+        await save_group_settings(chat_id, 'is_shortlink', False)
         ENABLE_SHORTLINK = False
     try:
         if ENABLE_SHORTLINK:
