@@ -17,6 +17,7 @@ so a slow / unreachable database can never freeze the bot.
 
 import logging
 from os import environ
+from platform import node
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -149,11 +150,16 @@ async def connect_all():
 
     for node in NODES:
         logger.info("Connecting %s...", node.name)
+try:
         ok = await node.ping()
+
         if ok:
-            logger.info("%s connected.", node.name)
+            logger.info("%s connected successfully.", node.name)
         else:
-            logger.error("%s connection FAILED.", node.name)
+            logger.error("%s ping failed.", node.name)
+
+    except Exception:
+        logger.exception("Unexpected error connecting to %s", node.name)
 
     alive = healthy_nodes()
     if not alive:
