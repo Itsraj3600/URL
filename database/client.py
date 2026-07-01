@@ -16,6 +16,7 @@ so a slow / unreachable database can never freeze the bot.
 """
 
 import logging
+import asyncio
 from os import environ
 from platform import node
 
@@ -38,6 +39,11 @@ logger = logging.getLogger(__name__)
 SERVER_SELECTION_TIMEOUT_MS = int(environ.get("DB_SERVER_SELECTION_TIMEOUT_MS", 10000))
 CONNECT_TIMEOUT_MS = int(environ.get("DB_CONNECT_TIMEOUT_MS", 10000))
 SOCKET_TIMEOUT_MS = int(environ.get("DB_SOCKET_TIMEOUT_MS", 30000))
+
+# Startup probe retries. A brief retry window avoids failing the worker on
+# transient MongoDB startup / network delays.
+CONNECT_RETRIES = int(environ.get("DB_CONNECT_RETRIES", 3))
+CONNECT_RETRY_DELAY_SECONDS = float(environ.get("DB_CONNECT_RETRY_DELAY_SECONDS", 5))
 
 # Connection pool tunables. Keep a warm pool without over-allocating sockets.
 MAX_POOL_SIZE = int(environ.get("DB_MAX_POOL_SIZE", 100))
@@ -148,28 +154,45 @@ async def connect_all():
             "No database configured. Set at least DATABASE_URI before starting."
         )
 
-    for node in NODES:
-        logger.info("Connecting %s...", node.name)
-        try:
-            ok = await node.ping()
+    last_error = None
 
-            if ok:
-                logger.info("%s connected successfully.", node.name)
-            else:
-                logger.error("%s ping failed.", node.name)
+    for attempt in range(CONNECT_RETRIES + 1):
+        for node in NODES:
+            logger.info("Connecting %s...", node.name)
+            try:
+                ok = await node.ping()
 
-        except Exception:
-            logger.exception("Unexpected error connecting to %s", node.name)
+                if ok:
+                    logger.info("%s connected successfully.", node.name)
+                else:
+                    logger.error("%s ping failed.", node.name)
 
-    alive = healthy_nodes()
-    if not alive:
-        raise RuntimeError("Could not connect to ANY database. Exiting.")
+            except Exception as exc:
+                last_error = exc
+                logger.exception("Unexpected error connecting to %s", node.name)
 
-    if len(alive) < len(NODES):
-        logger.warning(
-            "Only %d/%d databases are online. Running in degraded mode.",
-            len(alive),
-            len(NODES),
-        )
+        alive = healthy_nodes()
+        if alive:
+            if len(alive) < len(NODES):
+                logger.warning(
+                    "Only %d/%d databases are online. Running in degraded mode.",
+                    len(alive),
+                    len(NODES),
+                )
 
-    return alive
+            return alive
+
+        if attempt < CONNECT_RETRIES:
+            delay = CONNECT_RETRY_DELAY_SECONDS * (2 ** attempt)
+            logger.warning(
+                "No databases reachable yet; retrying startup probe in %.1fs (%d/%d)...",
+                delay,
+                attempt + 1,
+                CONNECT_RETRIES,
+            )
+            await asyncio.sleep(delay)
+
+    if last_error is not None:
+        raise RuntimeError("Could not connect to ANY database. Exiting.") from last_error
+
+    raise RuntimeError("Could not connect to ANY database. Exiting.")
