@@ -18,7 +18,6 @@ so a slow / unreachable database can never freeze the bot.
 import logging
 import asyncio
 from os import environ
-from platform import node
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -58,6 +57,12 @@ STORAGE_LIMIT_MB = float(environ.get("DB_STORAGE_LIMIT_MB", 512))
 FILL_THRESHOLD = float(environ.get("DB_FILL_THRESHOLD", 0.90))
 
 
+PRIMARY = None
+SECONDARY = None
+TERTIARY = None
+NODES = []
+
+
 def _make_client(uri):
     """Create an AsyncIOMotorClient with timeouts, or ``None`` if no URI."""
     if not uri:
@@ -79,7 +84,7 @@ class DBNode:
     def __init__(self, name, uri):
         self.name = name
         self.uri = uri
-        self.client = _make_client(uri)
+        self.client = None
         self.healthy = False  # updated by connect()/ping()
 
         if self.client is not None:
@@ -95,7 +100,21 @@ class DBNode:
 
     @property
     def configured(self):
-        return self.client is not None
+        return bool(self.uri)
+
+    def initialize(self):
+        """Create the Motor client and bind the database handles."""
+        if self.client is None and self.uri:
+            self.client = _make_client(self.uri)
+
+        if self.client is not None and self.db is None:
+            self.db = self.client[DATABASE_NAME]
+            # Media collection used by ia_filterdb / router.
+            self.media = self.db[COLLECTION_NAME]
+            # Connection collection used by connections_mdb.
+            self.connections = self.db["CONNECTION"]
+
+        return self.client
 
     async def ping(self):
         """Ping the server. Returns True on success, updates ``healthy``."""
@@ -118,23 +137,24 @@ class DBNode:
         return f"<DBNode {self.name} configured={self.configured} healthy={self.healthy}>"
 
 
-# --- Build the nodes once at import time ---------------------------------
-# (Motor clients are created lazily / non-blocking, so this is safe.)
+def get_primary():
+    """Return the initialized primary database node, if available."""
+    return PRIMARY
 
-print("info.py URI starts with:", DATABASE_URI[:30] if DATABASE_URI else None)
 
-PRIMARY = DBNode("Primary", DATABASE_URI)
-SECONDARY = DBNode("Secondary", SECONDDB_URI)
-TERTIARY = DBNode("Tertiary", THIRDDB_URI)
+def get_secondary():
+    """Return the initialized secondary database node, if available."""
+    return SECONDARY
 
-# Ordered list of every *configured* node (primary first). The router fills
-# them in this order.
-NODES = [n for n in (PRIMARY, SECONDARY, TERTIARY) if n.configured]
+
+def get_tertiary():
+    """Return the initialized tertiary database node, if available."""
+    return TERTIARY
 
 
 def configured_nodes():
     """All nodes that have a URI configured (order: primary -> tertiary)."""
-    return list(NODES)
+    return [n for n in (PRIMARY, SECONDARY, TERTIARY) if n is not None and n.configured]
 
 
 def healthy_nodes():
@@ -154,10 +174,24 @@ async def connect_all():
 
     Raises RuntimeError if not a single database is reachable.
     """
+    global PRIMARY, SECONDARY, TERTIARY, NODES
+
+    if PRIMARY is None and DATABASE_URI:
+        PRIMARY = DBNode("Primary", DATABASE_URI)
+    if SECONDARY is None and SECONDDB_URI:
+        SECONDARY = DBNode("Secondary", SECONDDB_URI)
+    if TERTIARY is None and THIRDDB_URI:
+        TERTIARY = DBNode("Tertiary", THIRDDB_URI)
+
+    NODES[:] = [n for n in (PRIMARY, SECONDARY, TERTIARY) if n is not None and n.configured]
+
     if not NODES:
         raise RuntimeError(
             "No database configured. Set at least DATABASE_URI before starting."
         )
+
+    for node in NODES:
+        node.initialize()
 
     last_error = None
 

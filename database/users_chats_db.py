@@ -1,20 +1,39 @@
 # https://github.com/odysseusmax/animated-lamp/blob/master/bot/database/database.py
 from info import DATABASE_NAME, DATABASE_URI, IMDB, IMDB_TEMPLATE, MELCOW_NEW_USERS, P_TTI_SHOW_OFF, SINGLE_BUTTON, SPELL_CHECK_REPLY, PROTECT_CONTENT, AUTO_DELETE, MAX_BTN, AUTO_FFILTER, SHORTLINK_API, SHORTLINK_URL, IS_SHORTLINK, TUTORIAL, IS_TUTORIAL
-from database.client import PRIMARY
+from database.client import get_primary
 import datetime
 import pytz
 
 class Database:
 
     def __init__(self, uri, database_name):
-        # Reuse the single shared Motor client (database.client.PRIMARY)
-        # instead of opening a second connection to the same database.
-        self._client = PRIMARY.client
-        self.db = self._client[database_name]
-        self.col = self.db.users
-        self.grp = self.db.groups
-        self.users = self.db.uersz
-        self.req = self.db.requests
+        self._database_name = database_name
+
+    def _client(self):
+        primary = get_primary()
+        if primary is None or primary.client is None:
+            raise RuntimeError("Primary MongoDB client is not initialized")
+        return primary.client
+
+    @property
+    def db(self):
+        return self._client()[self._database_name]
+
+    @property
+    def col(self):
+        return self.db.users
+
+    @property
+    def grp(self):
+        return self.db.groups
+
+    @property
+    def users(self):
+        return self.db.uersz
+
+    @property
+    def req(self):
+        return self.db.requests
         
     async def find_join_req(self, id):
         return bool(await self.req.find_one({'id': id}))

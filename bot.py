@@ -31,7 +31,7 @@ from datetime import date, datetime
 import pytz
 import asyncio
 
-from database.client import connect_all, PRIMARY
+from database.client import connect_all, get_primary
 from database.utils import ensure_all_indexes
 from database.schema import setup_production_schema
 from database.users_chats_db import db
@@ -135,17 +135,19 @@ async def Cine_start():
     alive_nodes = await connect_all()
 
     database_ready = bool(alive_nodes)
+    primary = get_primary()
+
+    if primary is None or primary.client is None:
+        raise RuntimeError("Primary MongoDB client was not initialized")
+
     if not database_ready:
         logger.warning(
             "No MongoDB nodes are currently reachable. Continuing in degraded mode."
         )
 
-    if PRIMARY.client is None:
-        raise RuntimeError("Primary MongoDB client was not initialized")
-
     if database_ready:
         try:
-            await setup_production_schema(PRIMARY.client)
+            await setup_production_schema(primary.client)
         except Exception as e:
             logger.exception(f"Schema setup failed: {e}")
             raise
@@ -178,7 +180,7 @@ async def Cine_start():
     # Step 6: Start Worker Heartbeat
     # =================================================================
     logger.info("Step 6/8: Starting worker heartbeat monitoring...")
-    heartbeat = WorkerHeartbeat("main", PRIMARY.client)
+    heartbeat = WorkerHeartbeat("main", primary.client)
     heartbeat_task = asyncio.create_task(heartbeat.start())
     temp.HEARTBEAT = heartbeat
 
@@ -198,7 +200,7 @@ async def Cine_start():
     setup_event_handlers()
 
     # Register graceful shutdown handlers
-    register_graceful_shutdown(Cine3600Bot, PRIMARY.client)
+    register_graceful_shutdown(Cine3600Bot, primary.client)
 
     # =================================================================
     # Notify Success

@@ -11,14 +11,17 @@ import logging
 from pyrogram import enums
 
 from info import COLLECTION_NAME
-from database.client import PRIMARY
+from database.client import get_primary
 
 logger = logging.getLogger(__name__)
 
 
 def _db():
     """The database that stores filter collections (primary)."""
-    return PRIMARY.db
+    primary = get_primary()
+    if primary is None or primary.db is None:
+        raise RuntimeError("Primary MongoDB database is not initialized")
+    return primary.db
 
 
 async def add_filter(grp_id, text, reply_text, btn, file, alert):
