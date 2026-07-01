@@ -1,3 +1,5 @@
+print(">>> plugins.pm_filter LOADED <<<")
+
 import asyncio
 import re
 import ast

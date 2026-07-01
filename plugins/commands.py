@@ -1,3 +1,5 @@
+print(">>> plugins.commands LOADED <<<")
+
 import os
 import logging
 import random

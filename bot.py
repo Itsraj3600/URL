@@ -24,6 +24,7 @@ to shared state, which the web process reads for the dashboard.
 
 import logging
 import logging.config
+import os
 from pyrogram import __version__, idle
 from pyrogram.raw.all import layer
 from os import environ
@@ -105,13 +106,33 @@ async def Cine_start():
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
 
-    print("=" * 60)
-    print("Dispatcher groups:", Cine3600Bot.dispatcher.groups.keys())
+    print("=" * 50)
+    print("Working Directory:", os.getcwd())
+    print("Plugins Exists:", os.path.isdir("plugins"))
+    if os.path.isdir("plugins"):
+        print("Plugin Files:")
+        for f in os.listdir("plugins"):
+            print(" -", f)
+    print("=" * 50)
+
+    print("\n" + "=" * 60)
+    print("Working Directory:", os.getcwd())
+    print("Plugins Exists:", os.path.isdir("plugins"))
+    if os.path.isdir("plugins"):
+        print("\nPlugin Files:")
+        for f in sorted(os.listdir("plugins")):
+            print(" -", f)
+    print("\nDispatcher Groups:", Cine3600Bot.dispatcher.groups.keys())
     total = 0
     for group, handlers in Cine3600Bot.dispatcher.groups.items():
         print(f"Group {group}: {len(handlers)} handlers")
+        for handler in handlers:
+            try:
+                print("   ", handler.callback.__module__, "->", handler.callback.__name__)
+            except Exception:
+                print("   ", handler)
         total += len(handlers)
-    print("Total handlers:", total)
+    print("\nTotal handlers:", total)
     print("=" * 60)
 
     # Get bot info

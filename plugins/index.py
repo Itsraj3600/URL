@@ -1,3 +1,5 @@
+print(">>> plugins.index LOADED <<<")
+
 import logging
 import asyncio
 from pyrogram import Client, filters, enums
