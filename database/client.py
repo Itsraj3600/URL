@@ -104,11 +104,14 @@ class DBNode:
             return False
         try:
             await self.client.admin.command("ping")
+            print(f"✅ {self.name} ping successful")
             self.healthy = True
             return True
-        except Exception as e:
+        except Exception:
+            import traceback
+
+            traceback.print_exc()
             self.healthy = False
-            logger.error("Ping failed for %s DB: %s", self.name, e)
             return False
 
     def __repr__(self):
@@ -117,6 +120,8 @@ class DBNode:
 
 # --- Build the nodes once at import time ---------------------------------
 # (Motor clients are created lazily / non-blocking, so this is safe.)
+
+print("info.py URI starts with:", DATABASE_URI[:30] if DATABASE_URI else None)
 
 PRIMARY = DBNode("Primary", DATABASE_URI)
 SECONDARY = DBNode("Secondary", SECONDDB_URI)
