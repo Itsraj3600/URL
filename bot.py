@@ -105,6 +105,15 @@ async def Cine_start():
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
 
+    print("=" * 60)
+    print("Dispatcher groups:", Cine3600Bot.dispatcher.groups.keys())
+    total = 0
+    for group, handlers in Cine3600Bot.dispatcher.groups.items():
+        print(f"Group {group}: {len(handlers)} handlers")
+        total += len(handlers)
+    print("Total handlers:", total)
+    print("=" * 60)
+
     # Get bot info
     bot_info = await Cine3600Bot.get_me()
     Cine3600Bot.username = bot_info.username
