@@ -193,6 +193,8 @@ async def connect_all():
             await asyncio.sleep(delay)
 
     if last_error is not None:
-        raise RuntimeError("Could not connect to ANY database. Exiting.") from last_error
+        logger.error("Could not connect to ANY database after retries: %s", last_error)
+    else:
+        logger.error("Could not connect to ANY database after retries.")
 
-    raise RuntimeError("Could not connect to ANY database. Exiting.")
+    return []

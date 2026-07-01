@@ -132,16 +132,23 @@ async def Cine_start():
     # Step 4: Connect to Databases
     # =================================================================
     logger.info("Step 4/8: Connecting to databases...")
-    await connect_all()
+    alive_nodes = await connect_all()
+
+    database_ready = bool(alive_nodes)
+    if not database_ready:
+        logger.warning(
+            "No MongoDB nodes are currently reachable. Continuing in degraded mode."
+        )
 
     if PRIMARY.client is None:
         raise RuntimeError("Primary MongoDB client was not initialized")
 
-    try:
-        await setup_production_schema()
-    except Exception as e:
-        logger.exception(f"Schema setup failed: {e}")
-        raise
+    if database_ready:
+        try:
+            await setup_production_schema(PRIMARY.client)
+        except Exception as e:
+            logger.exception(f"Schema setup failed: {e}")
+            raise
 
     # Keep Heroku server alive (if on Heroku)
     if ON_HEROKU:
@@ -150,19 +157,22 @@ async def Cine_start():
     # =================================================================
     # Step 5: Load Banned Users and Verify Indexes
     # =================================================================
-    logger.info("Step 5/8: Loading banned users...")
-    b_users, b_chats = await db.get_banned()
-    temp.BANNED_USERS = b_users
-    temp.BANNED_CHATS = b_chats
+    if database_ready:
+        logger.info("Step 5/8: Loading banned users...")
+        b_users, b_chats = await db.get_banned()
+        temp.BANNED_USERS = b_users
+        temp.BANNED_CHATS = b_chats
 
-    logger.info("Step 5/8: Verifying database indexes...")
-    await ensure_all_indexes()
+        logger.info("Step 5/8: Verifying database indexes...")
+        await ensure_all_indexes()
 
-    logger.info("Step 5/8: Initializing index history...")
-    from database.index_history import IndexHistoryDB
-    await IndexHistoryDB.initialize()
+        logger.info("Step 5/8: Initializing index history...")
+        from database.index_history import IndexHistoryDB
+        await IndexHistoryDB.initialize()
 
-    logger.info("✅ Database Ready")
+        logger.info("✅ Database Ready")
+    else:
+        logger.warning("Skipping database bootstrap tasks until a node becomes reachable.")
 
     # =================================================================
     # Step 6: Start Worker Heartbeat
@@ -176,7 +186,10 @@ async def Cine_start():
     # Step 7: Start Background Workers
     # =================================================================
     logger.info("Step 7/8: Starting background workers...")
-    await start_background_workers()
+    if database_ready:
+        await start_background_workers()
+    else:
+        logger.warning("Skipping background worker startup until database connectivity is restored.")
 
     # =================================================================
     # Step 8: Setup Event Handlers & Graceful Shutdown
@@ -226,10 +239,11 @@ async def Cine_start():
 
     # Publish startup event
     event_bus = get_event_bus()
-    await event_bus.publish(
-        Events.DB_CONNECTED,
-        source="bot.py"
-    )
+    if database_ready:
+        await event_bus.publish(
+            Events.DB_CONNECTED,
+            source="bot.py"
+        )
 
     # Keep the bot running
     try:
