@@ -106,6 +106,8 @@ async def Cine_start():
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
 
+    print("Bot class:", type(Cine3600Bot))
+
     print("=" * 50)
     print("Working Directory:", os.getcwd())
     print("Plugins Exists:", os.path.isdir("plugins"))
