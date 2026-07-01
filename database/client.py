@@ -150,16 +150,16 @@ async def connect_all():
 
     for node in NODES:
         logger.info("Connecting %s...", node.name)
-try:
-        ok = await node.ping()
+        try:
+            ok = await node.ping()
 
-        if ok:
-            logger.info("%s connected successfully.", node.name)
-        else:
-            logger.error("%s ping failed.", node.name)
+            if ok:
+                logger.info("%s connected successfully.", node.name)
+            else:
+                logger.error("%s ping failed.", node.name)
 
-    except Exception:
-        logger.exception("Unexpected error connecting to %s", node.name)
+        except Exception:
+            logger.exception("Unexpected error connecting to %s", node.name)
 
     alive = healthy_nodes()
     if not alive:
