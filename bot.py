@@ -116,6 +116,9 @@ async def Cine_start():
     await Cine3600Bot.start()
     # ================= DEBUG START =================
     
+    print("is_connected =", Cine3600Bot.is_connected)
+    print("no_updates =", getattr(Cine3600Bot, "no_updates", "NOT FOUND"))
+    print("workers =", getattr(Cine3600Bot, "workers", "NOT FOUND"))
 
     print("\n" + "=" * 80)
     print("CINE3600 DEBUG")

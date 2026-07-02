@@ -1,4 +1,4 @@
-print(">>> plugins.commands LOADED <<<")
+print(">>> COMMANDS VERSION 2026-07-02 10:45 <<<")
 
 import os
 import logging
