@@ -21,12 +21,21 @@ from database.connections_mdb import active_connection
 import re, asyncio, os, sys
 import json
 import base64
+from pyrogram import Client, filters
+
+@Client.on_message(filters.all, group=-100)
+async def debug_updates(client, message):
+    print(
+        f"DEBUG UPDATE: chat={message.chat.id} "
+        f"user={message.from_user.id if message.from_user else None} "
+        f"text={message.text!r}"
+    )
 logger = logging.getLogger(__name__)
 
 TIMEZONE = "Asia/Kolkata"
 BATCH_FILES = {}
 
-@Cine3600Bot.on_message(filters.command("start") & filters.incoming)
+@Client.on_message(filters.command("start") & filters.incoming)
 async def start(client, message):
     if message.chat.type in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
         buttons = [[
