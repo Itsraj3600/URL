@@ -31,15 +31,6 @@ from os import environ
 from datetime import date, datetime
 import pytz
 import asyncio
-import pkgutil
-import plugins
-
-print("\n========== PLUGIN SCAN ==========")
-
-for _, name, _ in pkgutil.iter_modules(plugins.__path__):
-    print("Found plugin:", name)
-
-print("=================================\n")
 
 from database.client import connect_all, get_primary
 from database.utils import ensure_all_indexes
@@ -114,39 +105,49 @@ async def Cine_start():
     # =================================================================
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
-    # ================= DEBUG START =================
-
-    print("\n" + "=" * 80)
-    print("CINE3600 DEBUG")
     print("=" * 80)
+print("REGISTERED HANDLERS")
+
+for group, handlers in Cine3600Bot.dispatcher.groups.items():
+    print(f"Group {group}: {len(handlers)} handlers")
+    for h in handlers:
+        try:
+            print(f"  {h.callback.__module__}.{h.callback.__name__}")
+        except Exception:
+            print(h)
+
+print("=" * 80)
 
     print("Bot class:", type(Cine3600Bot))
+
+    print("=" * 50)
     print("Working Directory:", os.getcwd())
     print("Plugins Exists:", os.path.isdir("plugins"))
+    if os.path.isdir("plugins"):
+        print("Plugin Files:")
+        for f in os.listdir("plugins"):
+            print(" -", f)
+    print("=" * 50)
 
+    print("\n" + "=" * 60)
+    print("Working Directory:", os.getcwd())
+    print("Plugins Exists:", os.path.isdir("plugins"))
     if os.path.isdir("plugins"):
         print("\nPlugin Files:")
         for f in sorted(os.listdir("plugins")):
             print(" -", f)
-
-    print("\nDispatcher Groups:")
+    print("\nDispatcher Groups:", Cine3600Bot.dispatcher.groups.keys())
     total = 0
-
     for group, handlers in Cine3600Bot.dispatcher.groups.items():
-        print(f"\nGroup {group}: {len(handlers)} handlers")
-        total += len(handlers)
-
+        print(f"Group {group}: {len(handlers)} handlers")
         for handler in handlers:
             try:
-                cb = handler.callback
-                print(f"   {cb.__module__}.{cb.__name__}")
-            except Exception as e:
-                print(f"   {handler} ({e})")
-
-    print(f"\nTOTAL HANDLERS: {total}")
-    print("=" * 80)
-
-    # ================= DEBUG END =================
+                print("   ", handler.callback.__module__, "->", handler.callback.__name__)
+            except Exception:
+                print("   ", handler)
+        total += len(handlers)
+    print("\nTotal handlers:", total)
+    print("=" * 60)
 
     # Get bot info
     bot_info = await Cine3600Bot.get_me()
