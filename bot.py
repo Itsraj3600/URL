@@ -115,6 +115,7 @@ async def Cine_start():
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
     # ================= DEBUG START =================
+    
 
     print("\n" + "=" * 80)
     print("CINE3600 DEBUG")

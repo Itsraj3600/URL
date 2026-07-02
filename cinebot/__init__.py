@@ -75,6 +75,7 @@ class Cine3600XBot(Client):
 
 
 Cine3600Bot = Cine3600XBot()
+print("PLUGIN CONFIG:", Cine3600Bot.plugins)
 
 multi_clients = {}
 work_loads = {}
