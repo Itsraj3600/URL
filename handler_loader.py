@@ -1,31 +1,10 @@
 import logging
+import pkgutil
 from importlib import import_module
 
 logger = logging.getLogger(__name__)
 
-HANDLER_MODULES = [
-    "plugins.ai",
-    "plugins.banned",
-    "plugins.broadcast",
-    "plugins.channel",
-    "plugins.commands",
-    "plugins.connection",
-    "plugins.files_delete",
-    "plugins.filters",
-    "plugins.genlink",
-    "plugins.gfilters",
-    "plugins.index",
-    "plugins.inline",
-    "plugins.join_req",
-    "plugins.misc",
-    "plugins.pmfilter",
-    "plugins.Premium",
-    "plugins.p_ttishow",
-    "plugins.rlazyRenamer",
-    "plugins.rlazy_cpption",
-    "plugins.rlazy_filedetect",
-    "plugins.rlazy_thumbnail",
-]
+IGNORED_MODULES = {"__init__", "route"}
 
 
 def load_handlers():
@@ -38,7 +17,13 @@ def load_handlers():
 
     logger.info("Loading handlers...")
 
-    for module_name in HANDLER_MODULES:
+    import plugins
+
+    for module_info in pkgutil.iter_modules(plugins.__path__):
+        if module_info.name in IGNORED_MODULES or module_info.name.startswith("_"):
+            continue
+
+        module_name = f"plugins.{module_info.name}"
         import_module(module_name)
         logger.info("Loaded handler module: %s", module_name)
 

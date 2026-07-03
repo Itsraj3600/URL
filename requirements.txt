@@ -1,8 +1,6 @@
-<<<<<<< HEAD
-pyrofork>=2.0.30 
-=======
+
 pyrogram>=2.0.30 
->>>>>>> e53efdf1209bcb685f12472c3a19152e71fddbda
+
  tgcrypto 
  pymongo[srv]==3.12.3 
  motor==2.5.1 
