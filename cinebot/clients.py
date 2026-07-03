@@ -1,4 +1,4 @@
-"""Client helpers for the legacy lazybot import path."""
+"""Client helpers for the Cinebot namespace."""
 
 import logging
 

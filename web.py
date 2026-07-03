@@ -58,7 +58,7 @@ validate_env_vars()
 
 from info import API_ID, API_HASH, BOT_TOKEN, PORT, MULTI_CLIENT, FQDN, HAS_SSL
 from plugins import web_server
-from lazybot import multi_clients, work_loads
+from cinebot import multi_clients, work_loads
 
 
 async def start_streaming_client():

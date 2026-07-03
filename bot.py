@@ -14,8 +14,8 @@ from database.ia_filterdb import Media
 from database.users_chats_db import db
 from handler_loader import load_handlers
 from info import LOG_CHANNEL, LOG_STR, ON_HEROKU
-from lazybot import LazyPrincessBot
-from lazybot.clients import initialize_clients
+from cinebot import LazyPrincessBot
+from cinebot.clients import initialize_clients
 from util.keepalive import ping_server
 from utils import temp
 
