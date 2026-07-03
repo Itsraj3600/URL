@@ -23,6 +23,8 @@ import json
 import base64
 from pyrogram import Client, filters
 
+print("Before first decorator")
+
 @Client.on_message(filters.all, group=-100)
 async def debug_updates(client, message):
     print(
@@ -30,6 +32,9 @@ async def debug_updates(client, message):
         f"user={message.from_user.id if message.from_user else None} "
         f"text={message.text!r}"
     )
+
+print("After debug handler")
+
 logger = logging.getLogger(__name__)
 
 TIMEZONE = "Asia/Kolkata"
