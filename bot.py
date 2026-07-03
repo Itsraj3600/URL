@@ -34,12 +34,6 @@ async def start_bot() -> None:
 
     await initialize_clients(Cine3600Bot)
 
-    try:
-        await Cine3600Bot.delete_webhook(drop_pending_updates=True)
-        logger.info("Webhook cleared before bot start.")
-    except Exception as exc:
-        logger.warning("Unable to clear webhook before start: %s", exc)
-
     await Cine3600Bot.start()
     bot_info = await Cine3600Bot.get_me()
 
@@ -47,6 +41,13 @@ async def start_bot() -> None:
     temp.ME = bot_info.id
     temp.U_NAME = bot_info.username
     temp.B_NAME = bot_info.first_name
+
+    total_handlers = 0
+    for group, handlers in Cine3600Bot.dispatcher.groups.items():
+        group_count = len(handlers)
+        total_handlers += group_count
+        logger.info("Handler group %s has %s handlers.", group, group_count)
+    logger.info("Total registered handlers: %s", total_handlers)
 
     b_users, b_chats = await db.get_banned()
     temp.BANNED_USERS = b_users
