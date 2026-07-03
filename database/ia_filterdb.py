@@ -4,18 +4,44 @@ import re
 import base64
 from pyrogram.file_id import FileId
 from pymongo.errors import DuplicateKeyError
-from umongo import Instance, Document, fields
 from motor.motor_asyncio import AsyncIOMotorClient
-from marshmallow.exceptions import ValidationError
 from info import DATABASE_URI, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTER, MAX_B_TN
 from utils import get_settings, save_group_settings
 
 logger = logging.getLogger(__name__)
 
 
-client = AsyncIOMotorClient(DATABASE_URI)
-db = client[DATABASE_NAME]
-instance = Instance.from_db(db)
+class _LazyMediaCollection:
+    def __init__(self, uri, database_name, collection_name):
+        self._uri = uri
+        self._database_name = database_name
+        self._collection_name = collection_name
+        self._client = None
+        self._db = None
+        self._collection = None
+
+    def _ensure_collection(self):
+        if self._collection is None:
+            self._client = AsyncIOMotorClient(self._uri)
+            self._db = self._client[self._database_name]
+            self._collection = self._db[self._collection_name]
+        return self._collection
+
+    @property
+    def collection(self):
+        return self._ensure_collection()
+
+    async def ensure_indexes(self):
+        await self.collection.create_index("file_name")
+
+    async def count_documents(self, *args, **kwargs):
+        return await self.collection.count_documents(*args, **kwargs)
+
+    def find(self, *args, **kwargs):
+        return self.collection.find(*args, **kwargs)
+
+
+Media = _LazyMediaCollection(DATABASE_URI, DATABASE_NAME, COLLECTION_NAME)
 
 
 def build_search_regex(query: str):
@@ -36,52 +62,35 @@ def build_search_regex(query: str):
         return None
 
 
-@instance.register
-class Media(Document):
-    file_id = fields.StrField(attribute='_id')
-    file_ref = fields.StrField(allow_none=True)
-    file_name = fields.StrField(required=True)
-    file_size = fields.IntField(required=True)
-    file_type = fields.StrField(allow_none=True)
-    mime_type = fields.StrField(allow_none=True)
-    caption = fields.StrField(allow_none=True)
-
-    class Meta:
-        indexes = ('$file_name', )
-        collection_name = COLLECTION_NAME
-
-
 async def save_file(media):
     """Save file in database"""
 
     # TODO: Find better way to get same file_id for same media to avoid duplicates
     file_id, file_ref = unpack_new_file_id(media.file_id)
     file_name = re.sub(r"(_|\-|\.|\+)", " ", str(media.file_name))
+    document = {
+        "_id": file_id,
+        "file_ref": file_ref,
+        "file_name": file_name,
+        "file_size": media.file_size,
+        "file_type": media.file_type,
+        "mime_type": media.mime_type,
+        "caption": media.caption.html if media.caption else None,
+    }
+
     try:
-        file = Media(
-            file_id=file_id,
-            file_ref=file_ref,
-            file_name=file_name,
-            file_size=media.file_size,
-            file_type=media.file_type,
-            mime_type=media.mime_type,
-            caption=media.caption.html if media.caption else None,
+        await Media.collection.insert_one(document)
+    except DuplicateKeyError:
+        logger.warning(
+            f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
         )
-    except ValidationError:
+        return False, 0
+    except Exception:
         logger.exception('Error occurred while saving file in database')
         return False, 2
-    else:
-        try:
-            await file.commit()
-        except DuplicateKeyError:      
-            logger.warning(
-                f'{getattr(media, "file_name", "NO_FILE")} is already saved in database'
-            )
 
-            return False, 0
-        else:
-            logger.info(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
-            return True, 1
+    logger.info(f'{getattr(media, "file_name", "NO_FILE")} is saved to database')
+    return True, 1
 
 
 

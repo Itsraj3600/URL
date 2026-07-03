@@ -7,8 +7,29 @@ from pyrogram import enums
 
 logger = logging.getLogger(__name__)
 
-client = AsyncIOMotorClient(DATABASE_URI)
-db = client[DATABASE_NAME]
+
+
+class _LazyDatabase:
+    def __init__(self, uri, database_name):
+        self._uri = uri
+        self._database_name = database_name
+        self._client = None
+        self._db = None
+
+    def _ensure_db(self):
+        if self._db is None:
+            self._client = AsyncIOMotorClient(self._uri)
+            self._db = self._client[self._database_name]
+        return self._db
+
+    def __getitem__(self, collection_name):
+        return self._ensure_db()[collection_name]
+
+    async def list_collection_names(self):
+        return await self._ensure_db().list_collection_names()
+
+
+db = _LazyDatabase(DATABASE_URI, DATABASE_NAME)
 
 
 async def add_filter(grp_id, text, reply_text, btn, file, alert):

@@ -6,12 +6,33 @@ from info import DATABASE_URI, DATABASE_NAME
 
 logger = logging.getLogger(__name__)
 
-client = AsyncIOMotorClient(DATABASE_URI)
-db = client[DATABASE_NAME]
-col = db['CONNECTION']
+
+
+class _LazyDatabase:
+    def __init__(self, uri, database_name):
+        self._uri = uri
+        self._database_name = database_name
+        self._client = None
+        self._db = None
+
+    def _ensure_db(self):
+        if self._db is None:
+            self._client = AsyncIOMotorClient(self._uri)
+            self._db = self._client[self._database_name]
+        return self._db
+
+    def __getitem__(self, collection_name):
+        return self._ensure_db()[collection_name]
+
+    async def list_collection_names(self):
+        return await self._ensure_db().list_collection_names()
+
+
+db = _LazyDatabase(DATABASE_URI, DATABASE_NAME)
 
 
 async def add_connection(group_id, user_id):
+    col = db['CONNECTION']
     query = await col.find_one(
         { "_id": user_id },
         { "_id": 0, "active_group": 0 }
@@ -55,6 +76,7 @@ async def add_connection(group_id, user_id):
 
 
 async def active_connection(user_id):
+    col = db['CONNECTION']
     query = await col.find_one(
         { "_id": user_id },
         { "_id": 0, "group_details": 0 }
@@ -67,6 +89,7 @@ async def active_connection(user_id):
 
 
 async def all_connections(user_id):
+    col = db['CONNECTION']
     query = await col.find_one(
         { "_id": user_id },
         { "_id": 0, "active_group": 0 }
@@ -77,6 +100,7 @@ async def all_connections(user_id):
 
 
 async def if_active(user_id, group_id):
+    col = db['CONNECTION']
     query = await col.find_one(
         { "_id": user_id },
         { "_id": 0, "group_details": 0 }
@@ -85,6 +109,7 @@ async def if_active(user_id, group_id):
 
 
 async def make_active(user_id, group_id):
+    col = db['CONNECTION']
     update = await col.update_one(
         {'_id': user_id},
         {"$set": {"active_group" : group_id}}
@@ -93,6 +118,7 @@ async def make_active(user_id, group_id):
 
 
 async def make_inactive(user_id):
+    col = db['CONNECTION']
     update = await col.update_one(
         {'_id': user_id},
         {"$set": {"active_group" : None}}
@@ -101,6 +127,7 @@ async def make_inactive(user_id):
 
 
 async def delete_connection(user_id, group_id):
+    col = db['CONNECTION']
     try:
         update = await col.update_one(
             {"_id": user_id},
