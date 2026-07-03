@@ -77,8 +77,6 @@ def get_shortlink_sync(url):
         return url
 
 async def get_shortlink(url):
-    if __name__ == "__main__":
-    asyncio.run(Lazy_start())
     return await loop.run_in_executor(None, get_shortlink_sync, url)
 
 @Client.on_message(filters.group | filters.private & filters.text & filters.incoming)
