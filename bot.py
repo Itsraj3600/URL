@@ -80,7 +80,8 @@ files = [f for f in files if 'web_server' not in f and 'route' not in f]
 # Create and start the bot client
 LazyPrincessBot = create_bot_client()
 LazyPrincessBot.start()
-loop = asyncio.get_event_loop()
+if __name__ == "__main__":
+    asyncio.run(Lazy_start())
 
 
 async def Lazy_start():
