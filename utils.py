@@ -6,7 +6,7 @@ import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from pyrogram.errors import MessageNotModified
 from pyrogram import enums
-from typing import Union
+from typing import Union, List
 from Script import script
 import pytz
 import random
@@ -659,7 +659,7 @@ async def send_all(bot, userid, files, ident, chat_id, user_name, query):
     if 'is_shortlink' in settings.keys():
         ENABLE_SHORTLINK = settings['is_shortlink']
     else:
-        await save_group_settings(message.chat.id, 'is_shortlink', False)
+        await save_group_settings(chat_id, 'is_shortlink', False)
         ENABLE_SHORTLINK = False
     try:
         if ENABLE_SHORTLINK:
