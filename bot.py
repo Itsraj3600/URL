@@ -33,6 +33,10 @@ import pytz
 import asyncio
 import pkgutil
 import plugins
+import glob
+import sys
+import importlib.util
+from pathlib import Path
 
 print("\n========== PLUGIN SCAN ==========")
 
@@ -67,6 +71,36 @@ logging.getLogger("aiohttp").setLevel(logging.ERROR)
 logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
+
+def load_plugins():
+    print("\n========== MANUAL PLUGIN LOADER ==========")
+
+    loaded = 0
+
+    for file in glob.glob("plugins/*.py"):
+        plugin = Path(file).stem
+
+        try:
+            spec = importlib.util.spec_from_file_location(
+                f"plugins.{plugin}",
+                file
+            )
+
+            module = importlib.util.module_from_spec(spec)
+
+            spec.loader.exec_module(module)
+
+            sys.modules[f"plugins.{plugin}"] = module
+
+            print(f"✅ Loaded {plugin}")
+            loaded += 1
+
+        except Exception as e:
+            print(f"❌ Failed {plugin}")
+            print(e)
+
+    print(f"\nLoaded {loaded} plugins")
+    print("=========================================\n")
 
 
 async def Cine_start():
@@ -114,6 +148,23 @@ async def Cine_start():
     # =================================================================
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
+    import importlib
+    import pkgutil
+    import plugins
+    import sys
+
+    print("\n=== MANUAL IMPORT CHECK ===")
+
+    for _, name, _ in pkgutil.iter_modules(plugins.__path__):
+        module_name = f"plugins.{name}"
+
+        if module_name in sys.modules:
+            print(f"Already imported: {module_name}")
+        else:
+            print(f"Importing: {module_name}")
+            importlib.import_module(module_name)
+
+print("===========================\n")
     # ================= DEBUG START =================
     
     print("is_connected =", Cine3600Bot.is_connected)
