@@ -1,12 +1,16 @@
 # Kanged From @TroJanZheX
 # Thanks @DeletedFromEarth
 import asyncio
+import logging
 import re
 import ast
 import math
 import random
 import pytz
 from datetime import datetime, timedelta, date, time
+
+logger = logging.getLogger(__name__)
+
 lock = asyncio.Lock()
 from database.users_chats_db import db
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
@@ -69,7 +73,7 @@ def get_shortlink_sync(url):
         else:
             return url
     except Exception as e:
-        print(f"Error in get_shortlink_sync: {e}")
+        logger.error(f"Error in get_shortlink_sync: {e}")
         return url
 
 async def get_shortlink(url):
@@ -1509,7 +1513,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                     reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🚀 ꜰᴀꜱᴛ ᴅᴏᴡɴʟᴏᴀᴅ", url=hp_link),
                                                         InlineKeyboardButton('ᴡᴀᴛᴄʜ ᴏɴʟɪɴᴇ 🧿', url=ph_link)]]))  
         except Exception as e:
-            print(e)  # print the error message
+            logger.exception("Error in link generation callback")
             await query.answer(f"⚠️ SOMETHING WENT WRONG \n\n{e}", show_alert=True)
             return
 

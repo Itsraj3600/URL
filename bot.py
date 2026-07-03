@@ -1,40 +1,69 @@
 import sys
+import os
 import glob
 import importlib
-from pathlib import Path
-from pyrogram import idle
 import logging
 import logging.config
-from pymongo.errors import OperationFailure
+import asyncio
+from pathlib import Path
+from datetime import date, datetime
 
-# Get logging configurations
+import pytz
+from pyrogram import Client, idle, __version__
+from pyrogram.raw.all import layer
+from pymongo.errors import OperationFailure
+from aiohttp import web
+
+
+def validate_env_vars():
+    """Validate critical environment variables before startup."""
+    required_vars = {
+        'BOT_TOKEN': 'Telegram Bot Token',
+        'API_ID': 'Telegram API ID',
+        'API_HASH': 'Telegram API Hash',
+        'DATABASE_URI': 'MongoDB Connection URI',
+        'DATABASE_NAME': 'MongoDB Database Name',
+        'LOG_CHANNEL': 'Log Channel ID',
+    }
+
+    missing = []
+    for var, description in required_vars.items():
+        value = os.environ.get(var)
+        if not value:
+            missing.append(f"  - {var} ({description})")
+        elif var in ('API_ID', 'LOG_CHANNEL'):
+            try:
+                int(value)
+            except ValueError:
+                missing.append(f"  - {var} must be a valid integer")
+
+    if missing:
+        logging.error("=" * 50)
+        logging.error("STARTUP FAILED: Missing or invalid environment variables:")
+        for item in missing:
+            logging.error(item)
+        logging.error("=" * 50)
+        logging.error("Please set these variables and restart the bot.")
+        sys.exit(1)
+
+
+# Configure logging
 logging.config.fileConfig('logging.conf')
 logging.getLogger().setLevel(logging.INFO)
 logging.getLogger("pyrogram").setLevel(logging.ERROR)
 logging.getLogger("imdbpy").setLevel(logging.ERROR)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
 logging.getLogger("aiohttp").setLevel(logging.ERROR)
 logging.getLogger("aiohttp.web").setLevel(logging.ERROR)
 
-from pyrogram import Client, __version__
-from pyrogram.raw.all import layer
+# Validate environment before proceeding
+validate_env_vars()
+
 from database.ia_filterdb import Media
 from database.users_chats_db import db
 from info import *
 from utils import temp
-from typing import Union, Optional, AsyncGenerator
-from pyrogram import types
 from Script import script
-from datetime import date, datetime
-import pytz
-from aiohttp import web
 from plugins import web_server
-
-import asyncio
-from pyrogram import idle
 from lazybot import LazyPrincessBot
 from util.keepalive import ping_server
 from lazybot.clients import initialize_clients
@@ -47,8 +76,8 @@ loop = asyncio.get_event_loop()
 
 
 async def Lazy_start():
-    print("\n")
-    print("Initializing The Movie Provider Bot")
+    logger = logging.getLogger(__name__)
+    logger.info("Initializing The Movie Provider Bot")
 
     bot_info = await LazyPrincessBot.get_me()
     LazyPrincessBot.username = bot_info.username
@@ -67,7 +96,7 @@ async def Lazy_start():
             spec.loader.exec_module(load)
             sys.modules[import_path] = load
 
-            print(f"The Movie Provider Imported => {plugin_name}")
+            logger.debug(f"Plugin loaded: {plugin_name}")
 
     if ON_HEROKU:
         asyncio.create_task(ping_server())
@@ -93,17 +122,15 @@ async def Lazy_start():
     except Exception as e:
         logging.exception(f"Failed to ensure indexes: {e}")
 
-    me = await LazyPrincessBot.get_me()
+    temp.ME = bot_info.id
+    temp.U_NAME = bot_info.username
+    temp.B_NAME = bot_info.first_name
 
-    temp.ME = me.id
-    temp.U_NAME = me.username
-    temp.B_NAME = me.first_name
-
-    LazyPrincessBot.username = "@" + me.username
+    LazyPrincessBot.username = "@" + bot_info.username
 
     logging.info(
-        f"{me.first_name} with Pyrogram v{__version__} "
-        f"(Layer {layer}) started on {me.username}."
+        f"{bot_info.first_name} with Pyrogram v{__version__} "
+        f"(Layer {layer}) started on {bot_info.username}."
     )
 
     logging.info(LOG_STR)

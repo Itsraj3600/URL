@@ -11,12 +11,30 @@ from info import DATABASE_URI, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTE
 from utils import get_settings, save_group_settings
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 client = AsyncIOMotorClient(DATABASE_URI)
 db = client[DATABASE_NAME]
 instance = Instance.from_db(db)
+
+
+def build_search_regex(query: str):
+    """Build a regex pattern for file search.
+    Returns compiled regex or None if pattern is invalid.
+    """
+    query = query.strip()
+    if not query:
+        raw_pattern = '.'
+    elif ' ' not in query:
+        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
+    else:
+        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
+
+    try:
+        return re.compile(raw_pattern, flags=re.IGNORECASE)
+    except re.error:
+        return None
+
 
 @instance.register
 class Media(Document):
@@ -83,22 +101,10 @@ async def get_search_results(chat_id, query, file_type=None, max_results=10, off
                 max_results = 10
             else:
                 max_results = int(MAX_B_TN)
-    query = query.strip()
-    #if filter:
-        #better ?
-        #query = query.replace(' ', r'(\s|\.|\+|\-|_)')
-        #raw_pattern = r'(\s|_|\-|\.|\+)' + query + r'(\s|_|\-|\.|\+)'
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
-    
-    try:
-        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
-        return []
+
+    regex = build_search_regex(query)
+    if regex is None:
+        return [], '', 0
 
     if USE_CAPTION_FILTER:
         filter = {'$or': [{'file_name': regex}, {'caption': regex}]}
@@ -115,33 +121,18 @@ async def get_search_results(chat_id, query, file_type=None, max_results=10, off
         next_offset = ''
 
     cursor = Media.find(filter)
-    # Sort by recent
     cursor.sort('$natural', -1)
-    # Slice files according to offset and max results
     cursor.skip(offset).limit(max_results)
-    # Get list of files
     files = await cursor.to_list(length=max_results)
 
     return files, next_offset, total_results
 
+
 async def get_bad_files(query, file_type=None, filter=False):
     """For given query return (results, next_offset)"""
-    query = query.strip()
-    #if filter:
-        #better ?
-        #query = query.replace(' ', r'(\s|\.|\+|\-|_)')
-        #raw_pattern = r'(\s|_|\-|\.|\+)' + query + r'(\s|_|\-|\.|\+)'
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]')
-    
-    try:
-        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
-        return []
+    regex = build_search_regex(query)
+    if regex is None:
+        return [], 0
 
     if USE_CAPTION_FILTER:
         filter = {'$or': [{'file_name': regex}, {'caption': regex}]}
@@ -154,9 +145,7 @@ async def get_bad_files(query, file_type=None, filter=False):
     total_results = await Media.count_documents(filter)
 
     cursor = Media.find(filter)
-    # Sort by recent
     cursor.sort('$natural', -1)
-    # Get list of files
     files = await cursor.to_list(length=total_results)
 
     return files, total_results

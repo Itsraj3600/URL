@@ -1,30 +1,27 @@
 import logging
 from pyrogram.errors import InputUserDeactivated, UserNotParticipant, FloodWait, UserIsBlocked, PeerIdInvalid
 from info import AUTH_CHANNEL, LONG_IMDB_DESCRIPTION, MAX_LIST_ELM, SHORTLINK_URL, SHORTLINK_API, IS_SHORTLINK, LOG_CHANNEL, TUTORIAL, GRP_LNK, CHNL_LNK, CUSTOM_FILE_CAPTION
-from imdb import Cinemagoer 
+from imdb import Cinemagoer
 import asyncio
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid
+from pyrogram.errors import MessageNotModified
 from pyrogram import enums
 from typing import Union
 from Script import script
 import pytz
-import random 
+import random
 import re
 import os
 from datetime import datetime, date
 import string
-from typing import List
 from database.users_chats_db import db
 from bs4 import BeautifulSoup
 import requests
 import aiohttp
 from shortzy import Shortzy
-import http.client
 import json
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 BTN_URL_REGEX = re.compile(
     r"(\[([^\[]+?)\]\((buttonurl|buttonalert):(?:/{0,2})(.+?)(:same)?\))"
@@ -450,17 +447,6 @@ def remove_escapes(text: str) -> str:
     return res
 
 
-def humanbytes(size):
-    if not size:
-        return ""
-    power = 2**10
-    n = 0
-    Dic_powerN = {0: ' ', 1: 'Ki', 2: 'Mi', 3: 'Gi', 4: 'Ti'}
-    while size > power:
-        size /= power
-        n += 1
-    return str(round(size, 2)) + " " + Dic_powerN[n] + 'B'
-
 async def get_shortlink(chat_id, link):
     settings = await get_settings(chat_id) #fetching settings for group
     if 'shortlink' in settings.keys():
@@ -692,7 +678,7 @@ async def send_all(bot, userid, files, ident, chat_id, user_name, query):
                                                                     file_size='' if size is None else size,
                                                                     file_caption='' if f_caption is None else f_caption)
                         except Exception as e:
-                            print(e)
+                            logger.debug(f"Caption format error: {e}")
                             f_caption = f_caption
                     if f_caption is None:
                         f_caption = f"{title}"
