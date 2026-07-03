@@ -805,6 +805,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
                 
 @Client.on_callback_query()
 async def cb_handler(client: Client, query: CallbackQuery):
+    logger.warning(f"CALLBACK RECEIVED: {query.data}")
     lazyData = query.data
     try:
         link = await client.create_chat_invite_link(int(REQST_CHANNEL))
