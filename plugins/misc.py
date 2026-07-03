@@ -1,5 +1,4 @@
 import os
-from contextlib import suppress
 from pyrogram import Client, filters, enums
 from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
 from info import IMDB_TEMPLATE
@@ -113,8 +112,7 @@ async def who_is(client, message):
             parse_mode=enums.ParseMode.HTML,
             disable_notification=True
         )
-        with suppress(FileNotFoundError):
-            os.remove(local_user_photo)
+        os.remove(local_user_photo)
     else:
         buttons = [[
             InlineKeyboardButton('🔐 Close', callback_data='close_data')

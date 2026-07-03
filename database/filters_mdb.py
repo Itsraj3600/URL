@@ -1,114 +1,115 @@
-"""
-Per-group custom filters.
-
-Asynchronous (Motor) and backed by the shared client. Each group's filters
-live in their own collection inside the primary database, keyed by the group
-id (kept stable so a group's filters are always found in the same place).
-"""
-
-import logging
-
+import pymongo
+from info import DATABASE_URI, DATABASE_NAME
 from pyrogram import enums
-
-from info import COLLECTION_NAME
-from database.client import get_primary
-
+import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
+myclient = pymongo.MongoClient(DATABASE_URI)
+mydb = myclient[DATABASE_NAME]
 
-def _db():
-    """The database that stores filter collections (primary)."""
-    primary = get_primary()
-    if primary is None or primary.db is None:
-        raise RuntimeError("Primary MongoDB database is not initialized")
-    return primary.db
 
 
 async def add_filter(grp_id, text, reply_text, btn, file, alert):
-    mycol = _db()[str(grp_id)]
+    mycol = mydb[str(grp_id)]
+    # mycol.create_index([('text', 'text')])
+
     data = {
-        "text": str(text),
-        "reply": str(reply_text),
-        "btn": str(btn),
-        "file": str(file),
-        "alert": str(alert),
+        'text':str(text),
+        'reply':str(reply_text),
+        'btn':str(btn),
+        'file':str(file),
+        'alert':str(alert)
     }
+
     try:
-        await mycol.update_one({"text": str(text)}, {"$set": data}, upsert=True)
-    except Exception as e:
-        logger.exception("add_filter failed: %s", e)
-
-
+        mycol.update_one({'text': str(text)},  {"$set": data}, upsert=True)
+    except:
+        logger.exception('Some error occured!', exc_info=True)
+             
+     
 async def find_filter(group_id, name):
-    mycol = _db()[str(group_id)]
+    mycol = mydb[str(group_id)]
+    
+    query = mycol.find( {"text":name})
+    # query = mycol.find( { "$text": {"$search": name}})
     try:
-        results = await mycol.find({"text": name}).to_list(length=None)
-        reply_text = btn = alert = fileid = None
-        for file in results:
-            reply_text = file["reply"]
-            btn = file["btn"]
-            fileid = file["file"]
-            alert = file.get("alert")
+        for file in query:
+            reply_text = file['reply']
+            btn = file['btn']
+            fileid = file['file']
+            try:
+                alert = file['alert']
+            except:
+                alert = None
         return reply_text, btn, alert, fileid
-    except Exception as e:
-        logger.error("find_filter failed: %s", e)
+    except:
         return None, None, None, None
 
 
 async def get_filters(group_id):
-    mycol = _db()[str(group_id)]
+    mycol = mydb[str(group_id)]
+
     texts = []
+    query = mycol.find()
     try:
-        async for file in mycol.find():
-            texts.append(file["text"])
-    except Exception as e:
-        logger.error("get_filters failed: %s", e)
+        for file in query:
+            text = file['text']
+            texts.append(text)
+    except:
+        pass
     return texts
 
 
 async def delete_filter(message, text, group_id):
-    mycol = _db()[str(group_id)]
-    myquery = {"text": text}
-    query = await mycol.count_documents(myquery)
+    mycol = mydb[str(group_id)]
+    
+    myquery = {'text':text }
+    query = mycol.count_documents(myquery)
     if query == 1:
-        await mycol.delete_one(myquery)
+        mycol.delete_one(myquery)
         await message.reply_text(
             f"'`{text}`'  deleted. I'll not respond to that filter anymore.",
             quote=True,
-            parse_mode=enums.ParseMode.MARKDOWN,
+            parse_mode=enums.ParseMode.MARKDOWN
         )
     else:
         await message.reply_text("Couldn't find that filter!", quote=True)
 
 
 async def del_all(message, group_id, title):
-    if str(group_id) not in await _db().list_collection_names():
+    if str(group_id) not in mydb.list_collection_names():
         await message.edit_text(f"Nothing to remove in {title}!")
         return
-    mycol = _db()[str(group_id)]
+
+    mycol = mydb[str(group_id)]
     try:
-        await mycol.drop()
+        mycol.drop()
         await message.edit_text(f"All filters from {title} has been removed")
-    except Exception as e:
-        logger.error("del_all failed: %s", e)
+    except:
         await message.edit_text("Couldn't remove all filters from group!")
+        return
 
 
 async def count_filters(group_id):
-    mycol = _db()[str(group_id)]
-    count = await mycol.count_documents({})
+    mycol = mydb[str(group_id)]
+
+    count = mycol.count()
     return False if count == 0 else count
 
 
 async def filter_stats():
-    collections = await _db().list_collection_names()
-    for reserved in ("CONNECTION", COLLECTION_NAME):
-        if reserved in collections:
-            collections.remove(reserved)
+    collections = mydb.list_collection_names()
+
+    if "CONNECTION" in collections:
+        collections.remove("CONNECTION")
 
     totalcount = 0
     for collection in collections:
-        mycol = _db()[collection]
-        totalcount += await mycol.count_documents({})
+        mycol = mydb[collection]
+        count = mycol.count()
+        totalcount += count
 
-    return len(collections), totalcount
+    totalcollections = len(collections)
+
+    return totalcollections, totalcount

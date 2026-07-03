@@ -1,2 +1,0 @@
-class HealthService:
-    pass

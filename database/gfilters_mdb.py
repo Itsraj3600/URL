@@ -1,113 +1,113 @@
-"""
-Global filters.
-
-Asynchronous (Motor) and backed by the shared client. Global filter sets are
-stored in their own collections inside the primary database.
-"""
-
-import logging
-
+import pymongo
+from info import DATABASE_URI, DATABASE_NAME
 from pyrogram import enums
-
-from info import COLLECTION_NAME
-from database.client import get_primary
-
+import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
 
+myclient = pymongo.MongoClient(DATABASE_URI)
+mydb = myclient[DATABASE_NAME]
 
-def _db():
-    """The database that stores gfilter collections (primary)."""
-    primary = get_primary()
-    if primary is None or primary.db is None:
-        raise RuntimeError("Primary MongoDB database is not initialized")
-    return primary.db
 
 
 async def add_gfilter(gfilters, text, reply_text, btn, file, alert):
-    mycol = _db()[str(gfilters)]
+    mycol = mydb[str(gfilters)]
+    # mycol.create_index([('text', 'text')])
+
     data = {
-        "text": str(text),
-        "reply": str(reply_text),
-        "btn": str(btn),
-        "file": str(file),
-        "alert": str(alert),
+        'text':str(text),
+        'reply':str(reply_text),
+        'btn':str(btn),
+        'file':str(file),
+        'alert':str(alert)
     }
+
     try:
-        await mycol.update_one({"text": str(text)}, {"$set": data}, upsert=True)
-    except Exception as e:
-        logger.exception("add_gfilter failed: %s", e)
-
-
+        mycol.update_one({'text': str(text)},  {"$set": data}, upsert=True)
+    except:
+        logger.exception('Some error occured!', exc_info=True)
+             
+     
 async def find_gfilter(gfilters, name):
-    mycol = _db()[str(gfilters)]
+    mycol = mydb[str(gfilters)]
+    
+    query = mycol.find( {"text":name})
+    # query = mycol.find( { "$text": {"$search": name}})
     try:
-        results = await mycol.find({"text": name}).to_list(length=None)
-        reply_text = btn = alert = fileid = None
-        for file in results:
-            reply_text = file["reply"]
-            btn = file["btn"]
-            fileid = file["file"]
-            alert = file.get("alert")
+        for file in query:
+            reply_text = file['reply']
+            btn = file['btn']
+            fileid = file['file']
+            try:
+                alert = file['alert']
+            except:
+                alert = None
         return reply_text, btn, alert, fileid
-    except Exception as e:
-        logger.error("find_gfilter failed: %s", e)
+    except:
         return None, None, None, None
 
 
 async def get_gfilters(gfilters):
-    mycol = _db()[str(gfilters)]
+    mycol = mydb[str(gfilters)]
+
     texts = []
+    query = mycol.find()
     try:
-        async for file in mycol.find():
-            texts.append(file["text"])
-    except Exception as e:
-        logger.error("get_gfilters failed: %s", e)
+        for file in query:
+            text = file['text']
+            texts.append(text)
+    except:
+        pass
     return texts
 
 
 async def delete_gfilter(message, text, gfilters):
-    mycol = _db()[str(gfilters)]
-    myquery = {"text": text}
-    query = await mycol.count_documents(myquery)
+    mycol = mydb[str(gfilters)]
+    
+    myquery = {'text':text }
+    query = mycol.count_documents(myquery)
     if query == 1:
-        await mycol.delete_one(myquery)
+        mycol.delete_one(myquery)
         await message.reply_text(
             f"'`{text}`'  deleted. I'll not respond to that gfilter anymore.",
             quote=True,
-            parse_mode=enums.ParseMode.MARKDOWN,
+            parse_mode=enums.ParseMode.MARKDOWN
         )
     else:
         await message.reply_text("Couldn't find that gfilter!", quote=True)
 
-
 async def del_allg(message, gfilters):
-    if str(gfilters) not in await _db().list_collection_names():
+    if str(gfilters) not in mydb.list_collection_names():
         await message.edit_text("Nothing to Remove !")
         return
-    mycol = _db()[str(gfilters)]
-    try:
-        await mycol.drop()
-        await message.edit_text("All gfilters has been removed !")
-    except Exception as e:
-        logger.error("del_allg failed: %s", e)
-        await message.edit_text("Couldn't remove all gfilters !")
 
+    mycol = mydb[str(gfilters)]
+    try:
+        mycol.drop()
+        await message.edit_text(f"All gfilters has been removed !")
+    except:
+        await message.edit_text("Couldn't remove all gfilters !")
+        return
 
 async def count_gfilters(gfilters):
-    mycol = _db()[str(gfilters)]
-    count = await mycol.count_documents({})
+    mycol = mydb[str(gfilters)]
+
+    count = mycol.count()
     return False if count == 0 else count
 
 
 async def gfilter_stats():
-    collections = await _db().list_collection_names()
-    for reserved in ("CONNECTION", COLLECTION_NAME):
-        if reserved in collections:
-            collections.remove(reserved)
+    collections = mydb.list_collection_names()
+
+    if "CONNECTION" in collections:
+        collections.remove("CONNECTION")
 
     totalcount = 0
     for collection in collections:
-        mycol = _db()[collection]
-        totalcount += await mycol.count_documents({})
+        mycol = mydb[collection]
+        count = mycol.count()
+        totalcount += count
 
-    return len(collections), totalcount
+    totalcollections = len(collections)
+
+    return totalcollections, totalcount

@@ -1,2 +1,0 @@
-class MovieService:
-    pass

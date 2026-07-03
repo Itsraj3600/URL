@@ -1,2 +1,0 @@
-class IndexWorker:
-    pass

@@ -6,7 +6,7 @@ import secrets
 import time
 import mimetypes
 from aiohttp.http_exceptions import BadStatusLine
-from cinebot import multi_clients, work_loads, Cine3600Bot
+from lazybot import multi_clients, work_loads, LazyPrincessBot
 from server.exceptions import FIleNotFound, InvalidHash
 from zzint import StartTime, __version__
 from util.custom_dl import ByteStreamer
@@ -19,7 +19,7 @@ routes = web.RouteTableDef()
 
 @routes.get("/", allow_head=True)
 async def root_route_handler(request):
-    return web.json_response("Kirat's CINE3600 Bot is running", status=200)
+    return web.json_response("BenFilterBot")
 
 
 @routes.get(r"/watch/{path:\S+}", allow_head=True)
@@ -71,8 +71,6 @@ class_cache = {}
 async def media_streamer(request: web.Request, id: int, secure_hash: str):
     range_header = request.headers.get("Range", 0)
     
-    logging.info(f"work_loads = {work_loads}")
-    logging.info(f"multi_clients = {multi_clients}")
     index = min(work_loads, key=work_loads.get)
     faster_client = multi_clients[index]
     

@@ -1,2 +1,0 @@
-class LoggingService:
-    pass

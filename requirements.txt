@@ -1,4 +1,4 @@
-pyrofork==2.0.30 
+pyrogram>=2.0.30 
  tgcrypto 
  pymongo[srv]==3.12.3 
  motor==2.5.1 
@@ -11,8 +11,6 @@ pyrofork==2.0.30
  datetime 
  pytz 
  aiohttp
-
- openai>=1.30.0
 
 #---master---# 
  #Telethroid==0.0.10 
@@ -42,8 +40,7 @@ apscheduler
 pyshorteners
 pyromod
 colorama
-hachoir
-bcrypt
-cryptography
-PyJWT
-httpx
+
+
+
+  

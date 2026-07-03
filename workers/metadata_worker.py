@@ -1,2 +1,0 @@
-class MetadataWorker:
-    pass
