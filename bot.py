@@ -1,3 +1,8 @@
+"""
+Worker dyno entry point - runs ONLY the Telegram bot.
+Handles all message processing, commands, filters, indexing, etc.
+NO web server - that runs on the web dyno.
+"""
 import sys
 import os
 import glob
@@ -12,7 +17,6 @@ import pytz
 from pyrogram import Client, idle, __version__
 from pyrogram.raw.all import layer
 from pymongo.errors import OperationFailure
-from aiohttp import web
 
 
 def validate_env_vars():
@@ -39,7 +43,7 @@ def validate_env_vars():
 
     if missing:
         logging.error("=" * 50)
-        logging.error("STARTUP FAILED: Missing or invalid environment variables:")
+        logging.error("WORKER STARTUP FAILED: Missing or invalid environment variables:")
         for item in missing:
             logging.error(item)
         logging.error("=" * 50)
@@ -63,26 +67,30 @@ from database.users_chats_db import db
 from info import *
 from utils import temp
 from Script import script
-from plugins import web_server
-from lazybot import LazyPrincessBot
+from lazybot import create_bot_client
 from util.keepalive import ping_server
 from lazybot.clients import initialize_clients
 
 ppath = "plugins/*.py"
 files = glob.glob(ppath)
 
+# Exclude web_server plugin from worker - it runs on web dyno
+files = [f for f in files if 'web_server' not in f and 'route' not in f]
+
+# Create and start the bot client
+LazyPrincessBot = create_bot_client()
 LazyPrincessBot.start()
 loop = asyncio.get_event_loop()
 
 
 async def Lazy_start():
     logger = logging.getLogger(__name__)
-    logger.info("Initializing The Movie Provider Bot")
+    logger.info("Initializing The Movie Provider Bot (Worker)")
 
     bot_info = await LazyPrincessBot.get_me()
     LazyPrincessBot.username = bot_info.username
 
-    await initialize_clients()
+    await initialize_clients(LazyPrincessBot)
 
     for name in files:
         with open(name):
@@ -149,13 +157,7 @@ async def Lazy_start():
     except Exception as e:
         logging.warning(f"Unable to send restart message: {e}")
 
-    app = web.AppRunner(await web_server())
-    await app.setup()
-
-    bind_address = "0.0.0.0"
-    await web.TCPSite(app, bind_address, PORT).start()
-
-    logging.info("Bot Started Successfully.")
+    logging.info("Bot Worker Started Successfully.")
 
     await idle()
 
@@ -164,6 +166,6 @@ if __name__ == "__main__":
     try:
         loop.run_until_complete(Lazy_start())
     except KeyboardInterrupt:
-        logging.info("Service Stopped. Bye 👋")
+        logging.info("Service Stopped. Bye")
     except Exception:
         logging.exception("Fatal error while starting the bot.")
