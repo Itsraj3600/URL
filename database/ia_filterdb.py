@@ -3,6 +3,7 @@ from struct import pack
 import re
 import base64
 from pyrogram.file_id import FileId
+from pymongo import ASCENDING
 from pymongo.errors import DuplicateKeyError
 from motor.motor_asyncio import AsyncIOMotorClient
 from info import DATABASE_URI, DATABASE_NAME, COLLECTION_NAME, USE_CAPTION_FILTER, MAX_B_TN
@@ -32,7 +33,15 @@ class _LazyMediaCollection:
         return self._ensure_collection()
 
     async def ensure_indexes(self):
-        await self.collection.create_index("file_name")
+        existing_indexes = await self.collection.index_information()
+        for index_info in existing_indexes.values():
+            if index_info.get("key") == [("file_name", ASCENDING)]:
+                return
+
+        await self.collection.create_index(
+            [("file_name", ASCENDING)],
+            name="idx_file_name",
+        )
 
     async def count_documents(self, *args, **kwargs):
         return await self.collection.count_documents(*args, **kwargs)

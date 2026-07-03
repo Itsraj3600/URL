@@ -12,9 +12,8 @@ from pyrogram.raw.all import layer
 from Script import script
 from database.ia_filterdb import Media
 from database.users_chats_db import db
-from handler_loader import load_handlers
 from info import LOG_CHANNEL, LOG_STR, ON_HEROKU
-from cinebot import LazyPrincessBot
+from cinebot import Cine3600Bot
 from cinebot.clients import initialize_clients
 from util.keepalive import ping_server
 from utils import temp
@@ -33,13 +32,12 @@ async def start_bot() -> None:
     logger = logging.getLogger(__name__)
     logger.info("Starting bot worker")
 
-    await initialize_clients(LazyPrincessBot)
-    load_handlers()
+    await initialize_clients(Cine3600Bot)
 
-    await LazyPrincessBot.start()
-    bot_info = await LazyPrincessBot.get_me()
+    await Cine3600Bot.start()
+    bot_info = await Cine3600Bot.get_me()
 
-    LazyPrincessBot.username = bot_info.username
+    Cine3600Bot.username = bot_info.username
     temp.ME = bot_info.id
     temp.U_NAME = bot_info.username
     temp.B_NAME = bot_info.first_name
@@ -52,7 +50,7 @@ async def start_bot() -> None:
         await Media.ensure_indexes()
         logger.info("Database indexes verified successfully.")
     except Exception as exc:
-        logger.exception("Failed to ensure indexes: %s", exc)
+        logger.warning("Failed to ensure indexes: %s", exc)
 
     if ON_HEROKU:
         asyncio.create_task(ping_server())
@@ -62,7 +60,7 @@ async def start_bot() -> None:
     current_time = datetime.now(tz).strftime("%H:%M:%S %p")
 
     try:
-        await LazyPrincessBot.send_message(
+        await Cine3600Bot.send_message(
             chat_id=LOG_CHANNEL,
             text=script.RESTART_TXT.format(today, current_time),
         )

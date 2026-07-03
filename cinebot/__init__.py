@@ -31,6 +31,7 @@ class Cine3600XBot(Client):
             bot_token=BOT_TOKEN,
             workers=50,
             sleep_threshold=5,
+            plugins=dict(root="plugins"),
         )
 
     async def iter_messages(
