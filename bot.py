@@ -34,6 +34,12 @@ async def start_bot() -> None:
 
     await initialize_clients(Cine3600Bot)
 
+    try:
+        await Cine3600Bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook cleared before bot start.")
+    except Exception as exc:
+        logger.warning("Unable to clear webhook before start: %s", exc)
+
     await Cine3600Bot.start()
     bot_info = await Cine3600Bot.get_me()
 
