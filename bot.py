@@ -33,10 +33,7 @@ import pytz
 import asyncio
 import pkgutil
 import plugins
-import glob
-import sys
-import importlib.util
-from pathlib import Path
+
 
 print("\n========== PLUGIN SCAN ==========")
 
@@ -148,23 +145,13 @@ async def Cine_start():
     # =================================================================
     logger.info("Step 2/8: Starting Telegram Bot...")
     await Cine3600Bot.start()
-    import importlib
-    import pkgutil
-    import plugins
-    import sys
+    # Get bot info
+    bot_info = await Cine3600Bot.get_me()
+    Cine3600Bot.username = bot_info.username
+    temp.ME = bot_info.id
+    temp.U_NAME = bot_info.username
+    temp.B_NAME = bot_info.first_name
 
-    print("\n=== MANUAL IMPORT CHECK ===")
-
-    for _, name, _ in pkgutil.iter_modules(plugins.__path__):
-        module_name = f"plugins.{name}"
-
-        if module_name in sys.modules:
-            print(f"Already imported: {module_name}")
-        else:
-            print(f"Importing: {module_name}")
-            importlib.import_module(module_name)
-
-print("===========================\n")
     # ================= DEBUG START =================
     
     print("is_connected =", Cine3600Bot.is_connected)
