@@ -12,7 +12,6 @@ from pyrogram.raw.all import layer
 from Script import script
 from database.ia_filterdb import Media
 from database.users_chats_db import db
-from handler_loader import load_handlers
 from info import LOG_CHANNEL, LOG_STR, ON_HEROKU
 from cinebot import Cine3600Bot
 from cinebot.clients import initialize_clients
@@ -34,7 +33,6 @@ async def start_bot() -> None:
     logger.info("Starting bot worker")
 
     await initialize_clients(Cine3600Bot)
-    load_handlers()
 
     await Cine3600Bot.start()
     bot_info = await Cine3600Bot.get_me()
