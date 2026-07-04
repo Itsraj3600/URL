@@ -78,5 +78,12 @@ print("PLUGIN CONFIG:", Cine3600Bot.plugins)
 
 LazyPrincessBot = Cine3600Bot
 
+# Bind decorator entrypoints to the live bot instance so plugin modules
+# using @Client.on_message / @Client.on_callback_query register handlers
+# on the running bot instead of a detached class-level path.
+Client.on_message = Cine3600Bot.on_message
+Client.on_callback_query = Cine3600Bot.on_callback_query
+Client.on_chat_join_request = Cine3600Bot.on_chat_join_request
+
 multi_clients = {}
 work_loads = {}
